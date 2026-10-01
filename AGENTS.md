@@ -27,6 +27,15 @@ The product and architecture documents are authoritative for task states, data m
 
 There are no nested Git repositories. Do not reintroduce `backend/.git` or `frontend/.git`; all source changes belong to the TaskForge root repository.
 
+## Module Boundary (Critical)
+
+TaskForge business code is confined to its own module and directory boundaries. Agents must honor these hard limits:
+
+- Backend lives under `backend/`; **all new TaskForge backend code goes in `backend/yudao-module-agent/`**. Do not place TaskForge logic in existing infrastructure modules (`yudao-module-system`, `yudao-module-infra`, `yudao-framework`, `yudao-server`, etc.).
+- Frontend lives under `frontend/`; API clients and types go in `frontend/src/api/`, pages/components under `frontend/src/views/` and `frontend/src/components/`.
+- **Do not modify unrelated existing infrastructure code.** The shared `yudao-*` modules, framework, and server bootstrap are baseline. Any change to them must be explicitly justified and is never bundled into a feature task.
+- Register new Maven modules in `backend/pom.xml` using the existing module pattern; never repurpose another module's build to host TaskForge code.
+
 ## Local Environment
 
 Prerequisites:
