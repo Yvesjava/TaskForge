@@ -158,10 +158,8 @@ public class S3FileClientTest {
     public void testQiniu() throws Exception {
         S3FileClientConfig config = new S3FileClientConfig();
         // 配置成你自己的
-//        config.setAccessKey(System.getenv("QINIU_ACCESS_KEY"));
-//        config.setAccessSecret(System.getenv("QINIU_SECRET_KEY"));
-        config.setAccessKey("b7yvuhBSAGjmtPhMFcn9iMOxUOY_I06cA_p0ZUx8");
-        config.setAccessSecret("kXM1l5ia1RvSX3QaOEcwI3RLz3Y2rmNszWonKZtP");
+        config.setAccessKey(System.getenv("QINIU_ACCESS_KEY"));
+        config.setAccessSecret(System.getenv("QINIU_SECRET_KEY"));
         config.setBucket("ruoyi-vue-pro");
         config.setDomain("http://test.yudao.iocoder.cn"); // 如果有自定义域名，则可以设置。http://static.yudao.iocoder.cn
         config.setEnablePathStyleAccess(false);
@@ -177,10 +175,8 @@ public class S3FileClientTest {
     public void testQiniu_privateGet() {
         S3FileClientConfig config = new S3FileClientConfig();
         // 配置成你自己的
-//        config.setAccessKey(System.getenv("QINIU_ACCESS_KEY"));
-//        config.setAccessSecret(System.getenv("QINIU_SECRET_KEY"));
-        config.setAccessKey("b7yvuhBSAGjmtPhMFcn9iMOxUOY_I06cA_p0ZUx8");
-        config.setAccessSecret("kXM1l5ia1RvSX3QaOEcwI3RLz3Y2rmNszWonKZtP");
+        config.setAccessKey(System.getenv("QINIU_ACCESS_KEY"));
+        config.setAccessSecret(System.getenv("QINIU_SECRET_KEY"));
         config.setBucket("ruoyi-vue-pro-private");
         config.setDomain("http://t151glocd.hn-bkt.clouddn.com"); // 如果有自定义域名，则可以设置。http://static.yudao.iocoder.cn
         config.setEnablePathStyleAccess(false);

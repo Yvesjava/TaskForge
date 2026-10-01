@@ -9,8 +9,8 @@ Authorization: Bearer {{token}}
   "remark": "",
   "storage": 20,
   "config": {
-    "accessKey": "b7yvuhBSAGjmtPhMFcn9iMOxUOY_I06cA_p0ZUx8",
-    "accessSecret": "kXM1l5ia1RvSX3QaOEcwI3RLz3Y2rmNszWonKZtP",
+    "accessKey": "YOUR_QINIU_ACCESS_KEY",
+    "accessSecret": "YOUR_QINIU_ACCESS_SECRET",
     "bucket": "ruoyi-vue-pro",
     "endpoint": "s3-cn-south-1.qiniucs.com",
     "domain": "http://test.yudao.iocoder.cn",
@@ -29,8 +29,8 @@ Authorization: Bearer {{token}}
   "name": "S3 - 七牛云",
   "remark": "",
   "config": {
-    "accessKey": "b7yvuhBSAGjmtPhMFcn9iMOxUOY_I06cA_p0ZUx8",
-    "accessSecret": "kXM1l5ia1RvSX3QaOEcwI3RLz3Y2rmNszWonKZtP",
+    "accessKey": "YOUR_QINIU_ACCESS_KEY",
+    "accessSecret": "YOUR_QINIU_ACCESS_SECRET",
     "bucket": "ruoyi-vue-pro",
     "endpoint": "s3-cn-south-1.qiniucs.com",
     "domain": "http://test.yudao.iocoder.cn",
