@@ -1,0 +1,43 @@
+name: taskforge
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: taskforge-mysql
+    restart: unless-stopped
+    ports:
+      - "${TASKFORGE_MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: ${TASKFORGE_DB_NAME:-taskforge}
+      MYSQL_ROOT_PASSWORD: ${TASKFORGE_DB_PASSWORD:-taskforge_dev}
+      TZ: Asia/Shanghai
+    volumes:
+      - taskforge_mysql_data:/var/lib/mysql
+      - ./backend/sql/mysql/ruoyi-vue-pro.sql:/docker-entrypoint-initdb.d/01-yudao.sql:ro
+      - ./backend/sql/mysql/quartz.sql:/docker-entrypoint-initdb.d/02-quartz.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskforge-redis
+    restart: unless-stopped
+    ports:
+      - "${TASKFORGE_REDIS_PORT:-6379}:6379"
+    environment:
+      REDIS_PASSWORD: ${TASKFORGE_REDIS_PASSWORD:-taskforge_dev}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${TASKFORGE_REDIS_PASSWORD:-taskforge_dev}"]
+    volumes:
+      - taskforge_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  taskforge_mysql_data:
+  taskforge_redis_data:

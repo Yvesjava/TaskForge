@@ -43,6 +43,44 @@
 - [产品文档](docs/产品文档.md)
 - [技术开发与架构设计文档](docs/技术开发与架构设计文档.md)
 
+## 本地开发环境
+
+前后端源码已经放入 TaskForge 根目录：
+
+| 目录 | 来源 | 分支 | 本地端口 |
+| --- | --- | --- | --- |
+| `backend/` | `https://gitee.com/zhijiantianya/ruoyi-vue-pro.git` | `master-jdk17` | `48080` |
+| `frontend/` | `https://gitee.com/yudaocode/yudao-ui-admin-vue3.git` | `master` | `3000` |
+
+环境要求：Java 17、Maven 3.8+、Node.js 20.19+、pnpm 8.6+、Docker Desktop。
+
+首次启动：
+
+```powershell
+Copy-Item .env.example .env
+Copy-Item frontend/.env.local.example frontend/.env.local
+docker compose up -d
+```
+
+启动后端：
+
+```powershell
+Set-Location backend
+$env:SPRING_PROFILES_ACTIVE = 'local,taskforge'
+mvn -pl yudao-server -am -DskipTests package
+java -jar yudao-server/target/yudao-server.jar --spring.profiles.active=local,taskforge
+```
+
+启动前端（另开一个终端）：
+
+```powershell
+Set-Location frontend
+pnpm install
+pnpm dev
+```
+
+访问 `http://localhost:3000`，前端 API 地址为 `http://localhost:48080/admin-api`。MySQL 首次启动会自动导入 `backend/sql/mysql/ruoyi-vue-pro.sql` 和 Quartz 表结构；数据卷已存在时不会重复导入。
+
 ## 实施路线
 
 1. **里程碑 1**：数据底座与模块脚手架（`agent_project` / `agent_task` 表结构 + 基础 CRUD）

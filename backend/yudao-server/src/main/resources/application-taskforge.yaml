@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: taskforge-backend
+  datasource:
+    dynamic:
+      datasource:
+        master:
+          url: ${TASKFORGE_DB_URL:jdbc:mysql://127.0.0.1:3306/taskforge?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true}
+          username: ${TASKFORGE_DB_USERNAME:root}
+          password: ${TASKFORGE_DB_PASSWORD:taskforge_dev}
+        slave:
+          url: ${TASKFORGE_DB_URL:jdbc:mysql://127.0.0.1:3306/taskforge?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true}
+          username: ${TASKFORGE_DB_USERNAME:root}
+          password: ${TASKFORGE_DB_PASSWORD:taskforge_dev}
+  data:
+    redis:
+      host: ${TASKFORGE_REDIS_HOST:127.0.0.1}
+      port: ${TASKFORGE_REDIS_PORT:6379}
+      database: ${TASKFORGE_REDIS_DATABASE:0}
+      password: ${TASKFORGE_REDIS_PASSWORD:taskforge_dev}
+
+server:
+  port: ${TASKFORGE_BACKEND_PORT:48080}
+
+yudao:
+  web:
+    admin-ui:
+      url: ${TASKFORGE_FRONTEND_URL:http://localhost:3000}
