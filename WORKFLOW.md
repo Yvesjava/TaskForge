@@ -27,15 +27,6 @@ agent:
   max_concurrent_agents: 2
   max_turns: 40
 
-# 开启自动合入（Auto-Merge / Auto-Land）
-merging:
-  strategy: auto_merge_when_checks_pass
-  delete_branch_after_merge: true
-
-linear:
-  # 跑完自验后跳过等待审核，直接推进
-  target_state_on_success: "Done"
-
 codex:
   command: codex app-server
   approval_policy: never
@@ -57,7 +48,37 @@ Title: {{ issue.title }}
 Description:
 {{ issue.description }}
 
-Before merging, keep the branch up to date with `origin/main`:
+## Automatic merge and status transition (no human review)
+
+You are authorized to complete this issue end-to-end without waiting for a
+human. Do not stop in `Merging` or wait for approval.
+
+### Linear state updates
+
+Use the `linear_graphql` tool for every Linear read and mutation. Resolve the
+issue to its internal `id`, fetch its team workflow states, and use the exact
+`stateId` for the target state. Never hard-code state IDs or assume a state name
+has a particular ID.
+
+Example transition:
+
+```graphql
+mutation MoveIssueToState($id: String!, $stateId: String!) {
+  issueUpdate(id: $id, input: { stateId: $stateId }) {
+    success
+    issue {
+      id
+      identifier
+      state { id name }
+    }
+  }
+}
+```
+
+### Merge gate
+
+Before merging, keep the current branch up to date with `origin/main`:
+
 1. Run `git fetch origin main`, then `git rebase origin/main`.
 2. If the rebase conflicts, inspect `git status` and resolve the unmerged paths.
    Prefer the change that satisfies the ticket's intent and preserves compatible
@@ -65,11 +86,31 @@ Before merging, keep the branch up to date with `origin/main`:
 3. After resolving, run `git add -A`, `git rebase --continue`, re-run the
    relevant checks, and confirm `git diff --check` is clean.
 4. If the conflict cannot be resolved safely within the remaining turns, run
-   `git rebase --abort`, set the Linear issue state to "Rework", and add a
-   comment listing the conflicting files and why they could not be resolved.
+   `git rebase --abort`, move the issue to `Rework` via `linear_graphql`, and
+   comment the conflicting files and why they could not be resolved.
+
+### Land
 
 When all ticket acceptance validations pass, the rebase is clean, and
 `git diff --check` is clean:
-1. Push the branch to origin.
-2. Fast-forward merge the branch into origin/main directly.
-3. Update the Linear issue state directly to "Done".
+
+1. Push the working branch:
+   ```sh
+   git push -u origin HEAD
+   ```
+2. Fast-forward `origin/main` directly from the current branch:
+   ```sh
+   git push origin HEAD:main
+   ```
+3. If that push is rejected because `main` moved, fetch and rebase again, then
+   retry step 2.
+4. If it is rejected by branch protection or permissions, create a pull request
+   and enable auto-merge as a fallback:
+   ```sh
+   gh pr create --fill
+   gh pr merge --auto --merge
+   ```
+   Use `--squash` instead of `--merge` when the repository requires it. Poll
+   `gh pr view --json state,mergeStateStatus` until the PR is merged; fix and
+   retry if it becomes blocked or conflicted.
+5. After `main` is updated, move the issue to `Done` using `linear_graphql`.
