@@ -21,18 +21,16 @@ function getRelativeScssUsePath(filename: string, targetPath: string) {
 export default ({command, mode}: ConfigEnv): UserConfig => {
     let env = {} as any
     const isBuild = command === 'build'
-    if (!isBuild) {
-        env = loadEnv((process.argv[3] === '--mode' ? process.argv[4] : process.argv[3]), root)
-    } else {
-        env = loadEnv(mode, root)
-    }
+    // 统一从 Vite 的 mode 解析环境变量：`pnpm dev` = `vite --mode env.local`，会加载 `.env.local`。
+    // 避免解析 process.argv，`--mode=env.local`（带等号）等写法也能正确取到 mode。
+    env = loadEnv(mode, root)
     const variablesScssPath = pathResolve('src/styles/variables.scss')
     return {
         base: env.VITE_BASE_PATH,
         root: root,
         // 服务端渲染
         server: {
-            port: env.VITE_PORT, // 端口号
+            port: env.VITE_PORT ? Number(env.VITE_PORT) : 3000, // 端口号，本地默认统一为 3000
             host: "0.0.0.0",
             open: env.VITE_OPEN === 'true',
             // 本地跨域代理. 目前注释的原因：暂时没有用途，server 端已经支持跨域
