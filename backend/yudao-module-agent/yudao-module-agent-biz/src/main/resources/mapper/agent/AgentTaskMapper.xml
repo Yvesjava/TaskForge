@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper">
+
+    <!-- 按任务编号查询，命中唯一键 uk_task_no；租户条件由租户拦截器自动追加 -->
+    <select id="selectByTaskNo" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO">
+        SELECT *
+          FROM agent_task
+         WHERE task_no = #{taskNo}
+           AND deleted = 0
+         ORDER BY id DESC
+         LIMIT 1
+    </select>
+
+    <!-- 调度器短事务捞取 PENDING 任务，命中索引 idx_scheduler；SKIP LOCKED 防止并发重复消费 -->
+    <select id="selectPendingTasks" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO">
+        SELECT *
+          FROM agent_task
+         WHERE status = 'PENDING'
+           AND deleted = 0
+         ORDER BY priority ASC, create_time ASC
+         LIMIT #{limit}
+         FOR UPDATE SKIP LOCKED
+    </select>
+
+    <!-- 抢占：PENDING -> RUNNING，写入 Worker 与租约；条件更新影响行数为 0 表示已被抢占/暂停/取消 -->
+    <update id="markTaskRunning">
+        UPDATE agent_task
+           SET status = 'RUNNING',
+               worker_id = #{workerId},
+               lease_until = #{leaseUntil},
+               heartbeat_time = NOW(),
+               started_time = NOW(),
+               execution_generation = #{generation},
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'PENDING'
+           AND deleted = 0
+    </update>
+
+    <!-- 续租：仅当前 Worker 与当前代次可更新；失租或代次不符时返回 0 -->
+    <update id="renewLease">
+        UPDATE agent_task
+           SET lease_until = #{leaseUntil},
+               heartbeat_time = NOW(),
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'RUNNING'
+           AND worker_id = #{workerId}
+           AND execution_generation = #{generation}
+           AND lease_until > NOW()
+           AND deleted = 0
+    </update>
+
+    <!-- 扫描租约过期的 RUNNING 任务，命中索引 idx_lease_recovery（status, lease_until） -->
+    <select id="selectExpiredRunningTasks" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO">
+        SELECT *
+          FROM agent_task
+         WHERE status = 'RUNNING'
+           AND lease_until <![CDATA[ < ]]> NOW()
+           AND deleted = 0
+         ORDER BY lease_until ASC
+         LIMIT #{limit}
+         FOR UPDATE SKIP LOCKED
+    </select>
+
+    <!-- 将租约过期的任务置为 FAILED 并递增执行代次 -->
+    <update id="markLeaseExpiredFailed">
+        UPDATE agent_task
+           SET status = 'FAILED',
+               worker_id = NULL,
+               lease_until = NULL,
+               heartbeat_time = NULL,
+               execution_generation = #{generation},
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'RUNNING'
+           AND lease_until <![CDATA[ < ]]> NOW()
+           AND deleted = 0
+    </update>
+
+    <!-- 重置：PAUSED -> RESETTING，阻止重复点击 -->
+    <update id="markResettingIfPaused">
+        UPDATE agent_task
+           SET status = 'RESETTING',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'PAUSED'
+           AND deleted = 0
+    </update>
+
+    <!-- 完成重置：清空执行痕迹并回到最终状态 -->
+    <update id="finishReset">
+        UPDATE agent_task
+           SET status = #{finalStatus},
+               worker_id = NULL,
+               lease_until = NULL,
+               heartbeat_time = NULL,
+               execution_log = NULL,
+               diff_stat = NULL,
+               retry_times = 0,
+               cost_ms = 0,
+               cancel_reason = NULL,
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'RESETTING'
+           AND deleted = 0
+    </update>
+
+</mapper>

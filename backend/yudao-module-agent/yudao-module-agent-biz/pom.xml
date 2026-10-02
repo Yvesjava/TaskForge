@@ -21,6 +21,12 @@
             <version>${revision}</version>
         </dependency>
 
+        <!-- 业务组件：多租户。同时传递提供 MyBatis-Plus（DO/Mapper 基类）、Web/Swagger（分页 VO 注解）依赖 -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-spring-boot-starter-biz-tenant</artifactId>
+        </dependency>
+
         <!-- database migration: 四类表结构由 Flyway 在 taskforge profile 启动时执行 -->
         <dependency>
             <groupId>org.flywaydb</groupId>

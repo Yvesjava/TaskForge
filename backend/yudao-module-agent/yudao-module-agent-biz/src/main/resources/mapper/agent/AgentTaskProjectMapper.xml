@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskProjectMapper">
+
+    <!-- 按任务 ID 查询项目映射，命中索引 idx_task_id；租户条件由租户拦截器自动追加 -->
+    <select id="selectListByTaskId" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskProjectDO">
+        SELECT *
+          FROM agent_task_project
+         WHERE task_id = #{taskId}
+           AND deleted = 0
+         ORDER BY id ASC
+    </select>
+
+</mapper>
