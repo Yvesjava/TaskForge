@@ -82,6 +82,16 @@ pnpm dev
 
 访问 `http://localhost:3000`，前端 API 地址为 `http://localhost:48080/admin-api`。MySQL 首次启动会自动导入 `backend/sql/mysql/ruoyi-vue-pro.sql` 和 Quartz 表结构；数据卷已存在时不会重复导入。
 
+### 验证 Docker 环境
+
+```powershell
+docker compose ps
+docker compose exec mysql mysqladmin ping -h 127.0.0.1 -uroot -ptaskforge_dev
+docker compose exec redis redis-cli -a taskforge_dev ping
+```
+
+`docker compose ps` 中 MySQL/Redis 的 `STATUS` 应显示 `healthy`，Redis 应返回 `PONG`。需要重新初始化数据库时，先执行 `docker compose down -v` 再重新 `docker compose up -d`。
+
 ## 实施路线
 
 1. **里程碑 1**：数据底座与模块脚手架（`agent_project` / `agent_task` 表结构 + 基础 CRUD）
