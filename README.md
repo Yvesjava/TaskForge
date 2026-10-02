@@ -115,6 +115,16 @@ pnpm build:local
 ```
 
 服务级验证见 `AGENTS.md`：确认 Docker 健康、`http://localhost:48080/v3/api-docs` 与 `http://localhost:3000/` 可访问。前端 lint 的上游遗留告警由 LZC-67 跟进，修复前请只对改动文件执行 `pnpm lint:lint-staged`。
+前端本地环境变量统一收敛到 `frontend/.env.local.example`（复制为 `frontend/.env.local`）：`VITE_PORT` 固定前端端口 `3000`，`VITE_BASE_URL`（后端来源地址）与 `VITE_API_URL`（`admin-api` 前缀）拼接为接口基地址 `http://localhost:48080/admin-api`。可用 `pnpm check:env`（在 `frontend/` 下）校验该约定未被破坏。
+### 验证 Docker 环境
+
+```powershell
+docker compose ps
+docker compose exec mysql mysqladmin ping -h 127.0.0.1 -uroot -ptaskforge_dev
+docker compose exec redis redis-cli -a taskforge_dev ping
+```
+
+`docker compose ps` 中 MySQL/Redis 的 `STATUS` 应显示 `healthy`，Redis 应返回 `PONG`。需要重新初始化数据库时，先执行 `docker compose down -v` 再重新 `docker compose up -d`。
 
 ## 实施路线
 
