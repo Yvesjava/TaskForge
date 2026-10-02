@@ -1,5 +1,9 @@
 name: taskforge
 
+# TaskForge 本地开发环境。
+# - MySQL 首次启动会自动导入 backend/sql/mysql/*.sql；数据卷已存在时不会重复导入。
+#   需要重新初始化时，先执行 `docker compose down -v` 再启动。
+# - 端口、库名与密码可通过根目录 `.env` 覆盖，模板见 `.env.example`。
 services:
   mysql:
     image: mysql:8.4
@@ -16,10 +20,13 @@ services:
       - ./backend/sql/mysql/ruoyi-vue-pro.sql:/docker-entrypoint-initdb.d/01-yudao.sql:ro
       - ./backend/sql/mysql/quartz.sql:/docker-entrypoint-initdb.d/02-quartz.sql:ro
     healthcheck:
+      # 首次初始化期间 MySQL 以 --skip-networking 启动，此时探针必然失败；
+      # 用 start_period 提供宽限期，避免新环境在导入初始化 SQL 期间被误判为 unhealthy。
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -37,6 +44,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 15s
 
 volumes:
   taskforge_mysql_data:
