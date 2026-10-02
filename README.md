@@ -82,6 +82,16 @@ pnpm dev
 
 访问 `http://localhost:3000`，前端 API 地址为 `http://localhost:48080/admin-api`。MySQL 首次启动会自动导入 `backend/sql/mysql/ruoyi-vue-pro.sql` 和 Quartz 表结构；数据卷已存在时不会重复导入。
 
+### 数据库迁移（Flyway）
+
+TaskForge 四类表（`agent_project`、`agent_task`、`agent_task_project`、`agent_task_operation_log`）由 Flyway 在 `taskforge` profile 启动时自动迁移：
+
+- 迁移脚本：`backend/yudao-module-agent/yudao-module-agent-biz/src/main/resources/db/migration/V1~V4__*.sql`
+- 迁移历史：`flyway_schema_history` 表；已应用版本不会重复执行，迁移可重复执行
+- 回滚脚本与说明：`backend/yudao-module-agent/yudao-module-agent-biz/src/main/resources/db/rollback/README.md`
+  （Flyway 社区版无 `undo` 命令，回滚需手动执行 `rollback-all-agent-tables.sql`）
+- 迁移默认关闭，仅在 `taskforge` profile 打开；`local` 之外的 profile 不受影响
+
 ## 实施路线
 
 1. **里程碑 1**：数据底座与模块脚手架（`agent_project` / `agent_task` 表结构 + 基础 CRUD）

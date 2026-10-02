@@ -20,5 +20,15 @@
             <artifactId>yudao-module-agent-api</artifactId>
             <version>${revision}</version>
         </dependency>
+
+        <!-- database migration: 四类表结构由 Flyway 在 taskforge profile 启动时执行 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
     </dependencies>
 </project>

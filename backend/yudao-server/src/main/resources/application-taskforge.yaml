@@ -12,6 +12,17 @@ spring:
           url: ${TASKFORGE_DB_URL:jdbc:mysql://127.0.0.1:3306/taskforge?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true}
           username: ${TASKFORGE_DB_USERNAME:root}
           password: ${TASKFORGE_DB_PASSWORD:taskforge_dev}
+  # TaskForge 数据底座迁移：脚本位于 yudao-module-agent-biz 的 classpath:db/migration，
+  # 已存在的 ruoyi 表结构以 baseline-version=0 记账，随后按 V1~V4 顺序建表，可重复执行。
+  # 回滚脚本与说明见 db/rollback/README.md（Flyway 社区版无 undo 命令）。
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: true
+    clean-disabled: true
+    table: flyway_schema_history
   data:
     redis:
       host: ${TASKFORGE_REDIS_HOST:127.0.0.1}
