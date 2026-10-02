@@ -26,6 +26,16 @@ hooks:
 agent:
   max_concurrent_agents: 2
   max_turns: 40
+
+# 开启自动合入（Auto-Merge / Auto-Land）
+merging:
+  strategy: auto_merge_when_checks_pass
+  delete_branch_after_merge: true
+
+linear:
+  # 跑完自验后跳过等待审核，直接推进
+  target_state_on_success: "Done"
+
 codex:
   command: codex app-server
   approval_policy: never
@@ -46,3 +56,8 @@ Title: {{ issue.title }}
 
 Description:
 {{ issue.description }}
+
+When all ticket acceptance validations pass and `git diff --check` is clean:
+1. Push the branch to origin.
+2. Fast-forward merge the branch into origin/main directly.
+3. Update the Linear issue state directly to "Done".
