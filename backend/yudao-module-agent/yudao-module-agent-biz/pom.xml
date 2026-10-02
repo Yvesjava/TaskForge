@@ -14,6 +14,11 @@
     <name>${project.artifactId}</name>
     <description>TaskForge Agent 业务实现</description>
 
+    <properties>
+        <!-- 固定 1.21.4：这是首个兼容 Docker Engine 29（最低 API v1.44）的 1.x 版本 -->
+        <testcontainers.version>1.21.4</testcontainers.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>cn.iocoder.boot</groupId>
@@ -46,6 +51,26 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-inline</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers MySQL 集成测试 -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
