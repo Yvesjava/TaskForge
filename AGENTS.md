@@ -12,6 +12,8 @@ Read these documents before changing product behavior or architecture:
 
 - `docs/产品文档.md`
 - `docs/技术开发与架构设计文档.md`
+- `docs/开发模块与子任务拆分.md`
+- `docs/工程约定.md`
 - `README.md`
 
 The product and architecture documents are authoritative for task states, data models, API behavior, worker execution, and milestone scope. Update the relevant document when an implementation changes those contracts.
@@ -80,7 +82,7 @@ The frontend listens on `http://localhost:3000` and sends API requests to `http:
 ### Backend
 
 - Follow the existing Yudao module structure: controller, application/service, domain data object, mapper, and DTO/VO layers.
-- Keep TaskForge business code in the planned `yudao-module-agent` module once that module is introduced; register it in the parent/server Maven configuration using existing module patterns.
+- TaskForge business code lives in `backend/yudao-module-agent/` (`yudao-module-agent-api` + `yudao-module-agent-biz`), already registered in the parent POM and `yudao-server`. Add further sub-modules with the existing Maven module pattern.
 - Preserve tenant, audit, logical-delete, permission, and idempotency conventions from the surrounding modules.
 - Implement state transitions through explicit transition checks and operation records. Do not update task status from arbitrary controllers or workers.
 - Use parameterized queries and existing MyBatis/Yudao data-access helpers. Do not build SQL with string concatenation.
@@ -99,6 +101,20 @@ The frontend listens on `http://localhost:3000` and sends API requests to `http:
 - Keep examples executable and consistent with the actual ports, profiles, table names, and status values.
 - Update `README.md` when a developer command or required environment variable changes.
 
+### Code Format
+
+- Repo-wide encoding, line endings, and indentation are defined by the root `.editorconfig` and `.gitattributes` (UTF-8, LF, no tabs); `frontend/.editorconfig` governs frontend files.
+- Backend Java uses 4-space indentation and Yudao layer naming (`Controller` / `Service` / `ServiceImpl` / `Mapper` / `DO` / `VO` / `Convert`). There is no backend formatter plugin yet, so format consistency is enforced by review plus compilation.
+- Frontend formatting is enforced by ESLint, Prettier, and Stylelint. Run `pnpm lint:eslint` / `pnpm lint:style` / `pnpm lint:format` (fix) from `frontend/`. Note: `pnpm lint` currently reports 22 pre-existing upstream stylelint violations (tracked by TASK-BASE-05 / LZC-67); until that is fixed, lint only the files you changed (lint-staged) and never reformat unrelated modules.
+- Keep the full convention set in `docs/工程约定.md`; do not restate divergent rules here or in `README.md`.
+
+### Logging
+
+- Use `ERROR` for failures needing human action, `WARN` for self-healing or degraded paths, `INFO` for state transitions, scheduling, merges, and notifications, and `DEBUG` only for temporary troubleshooting.
+- Key events carry task number, execution generation, repository identifier, and before/after status; cross-module calls and error responses carry `TracerUtils.getTraceId()` (OpenTelemetry TraceId, possibly empty).
+- Never log Git credentials, tokens, cookies, `Authorization` headers, private keys, passwords, or full environment variables; redact `git_url` and subprocess command arguments first.
+- Worker subprocess stdout/stderr is captured to the task log; truncate around the configured limit (keep head and tail) before persisting to `execution_log`, and record the truncation marker with the original log path.
+
 ## Verification
 
 Run focused checks for the area changed:
@@ -109,18 +125,22 @@ docker compose config
 
 # Backend build
 Set-Location backend
+mvn -B clean test-compile
+mvn -q -pl yudao-module-agent/yudao-module-agent-biz -am test-compile
 mvn -pl yudao-server -am -DskipTests package
 
 # Frontend build
 Set-Location ..\frontend
+pnpm install --frozen-lockfile
 pnpm build:local
 ```
 
-For service-level verification, confirm Docker health, `http://localhost:48080/v3/api-docs`, and `http://localhost:3000/`. Run broader tests when a change crosses module boundaries or changes shared contracts.
+`mvn -B clean test-compile` and `pnpm install --frozen-lockfile && pnpm run build:prod` are the CI gatekeeper commands (`.github/workflows/ci.yml`); keep them working. For service-level verification, confirm Docker health, `http://localhost:48080/v3/api-docs`, and `http://localhost:3000/`. Run broader tests when a change crosses module boundaries or changes shared contracts.
 
 ## Git and Security Rules
 
 - Work only in the root TaskForge Git repository and keep `origin` pointed at GitHub TaskForge.
+- Name feature branches `<type>/<ticket-id>-<short-slug>` in lowercase, for example `feat/lzc-9-engineering-conventions`; branch from the latest `origin/main` and merge `origin/main` back before handoff.
 - Use Conventional Commit messages, for example `feat(agent): ...`, `fix(agent): ...`, or `docs: ...`.
 - Never commit `.env`, `frontend/.env.local`, credentials, private keys, tokens, generated logs, `target/`, `node_modules/`, or `dist/` output. Use the checked-in example files instead.
 - SQL fixtures and request examples must contain placeholders such as `YOUR_QINIU_ACCESS_KEY`, never real cloud credentials.

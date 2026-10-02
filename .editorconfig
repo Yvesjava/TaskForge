@@ -1,0 +1,23 @@
+# TaskForge 根编辑器约定（EditorConfig）
+# 前端目录另有 frontend/.editorconfig（root = true），前端文件优先使用其规则。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{java,xml}]
+indent_size = 4
+
+[*.{js,jsx,ts,tsx,vue,json,yml,yaml,less,scss,css}]
+indent_size = 2
+
+[*.{sql,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

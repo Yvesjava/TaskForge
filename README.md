@@ -18,7 +18,7 @@
 | --- | --- |
 | 后端 | Java 17 + Spring Boot 3.x（`ruoyi-vue-pro` 新增 `yudao-module-agent` 模块） |
 | 前端 | Vue 3 + TypeScript + Vite + Element Plus（`yudao-ui-admin-vue3`） |
-| 调度与锁 | MySQL 8.0 `FOR UPDATE SKIP LOCKED` + Redis 7.x |
+| 调度与锁 | MySQL 8.x（本地 Compose 使用 8.4）`FOR UPDATE SKIP LOCKED` + Redis 7.x |
 | 沙箱与版本控制 | Bare Repo 缓存 + `git worktree` |
 | AI 运行层 | Codex CLI / Claude Code（非交互批处理模式） |
 
@@ -36,13 +36,14 @@
 
 ## 任务状态流转
 
-`PENDING → RUNNING → WAITING_ACCEPTANCE → ACCEPTED`，同时支持 `PAUSED`、`CANCELED`、`FAILED` 分支流转与重置。
+`PENDING → RUNNING → WAITING_ACCEPTANCE → ACCEPTED → COMPLETED`，同时支持 `PAUSED`、`REJECTED`、`CANCELED`、`FAILED`、`MERGE_CONFLICT_PENDING_MANUAL` 等分支流转与重置。
 
 ## 文档
 
 - [产品文档](docs/产品文档.md)
 - [技术开发与架构设计文档](docs/技术开发与架构设计文档.md)
 - [开发模块与子任务拆分](docs/开发模块与子任务拆分.md)
+- [工程约定](docs/工程约定.md)
 
 ## 本地开发环境
 
@@ -82,6 +83,38 @@ pnpm dev
 
 访问 `http://localhost:3000`，前端 API 地址为 `http://localhost:48080/admin-api`。MySQL 首次启动会自动导入 `backend/sql/mysql/ruoyi-vue-pro.sql` 和 Quartz 表结构；数据卷已存在时不会重复导入。
 
+## 开发约定
+
+代码格式、构建、日志与分支命名约定统一沉淀在 [工程约定](docs/工程约定.md)，`README.md`、`AGENTS.md`、CI（`.github/workflows/ci.yml`）与本地命令保持一致。
+
+- 格式：根目录 `.editorconfig` + `.gitattributes` 统一编码、换行与缩进；前端由 ESLint / Prettier / Stylelint 执行。
+- 构建：后端 `mvn -B clean test-compile`，前端 `pnpm install --frozen-lockfile && pnpm build:prod`，与 CI 一致。
+- 日志：结构化字段 + `traceId`，凭证与 Token 脱敏，Worker 日志截断后写入 `execution_log`。
+- 分支：`<type>/<ticket-id>-<short-slug>`，例如 `feat/lzc-9-engineering-conventions`。
+- 提交：Conventional Commits，例如 `feat(agent): ...`、`docs: ...`。
+
+## 本地验证
+
+提交前按改动范围执行：
+
+```powershell
+# 根配置
+docker compose config
+git diff --check
+
+# 后端（从 backend/ 执行，CI 使用同一命令）
+Set-Location backend
+mvn -B clean test-compile
+mvn -q -pl yudao-module-agent/yudao-module-agent-biz -am test-compile
+
+# 前端（从 frontend/ 执行）
+Set-Location ..\frontend
+pnpm install --frozen-lockfile
+pnpm lint        # 当前会命中上游遗留 stylelint 告警，见 docs/工程约定.md
+pnpm build:local
+```
+
+服务级验证见 `AGENTS.md`：确认 Docker 健康、`http://localhost:48080/v3/api-docs` 与 `http://localhost:3000/` 可访问。前端 lint 的上游遗留告警由 LZC-67 跟进，修复前请只对改动文件执行 `pnpm lint:lint-staged`。
 前端本地环境变量统一收敛到 `frontend/.env.local.example`（复制为 `frontend/.env.local`）：`VITE_PORT` 固定前端端口 `3000`，`VITE_BASE_URL`（后端来源地址）与 `VITE_API_URL`（`admin-api` 前缀）拼接为接口基地址 `http://localhost:48080/admin-api`。可用 `pnpm check:env`（在 `frontend/` 下）校验该约定未被破坏。
 ### 验证 Docker 环境
 
