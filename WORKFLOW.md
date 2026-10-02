@@ -57,7 +57,19 @@ Title: {{ issue.title }}
 Description:
 {{ issue.description }}
 
-When all ticket acceptance validations pass and `git diff --check` is clean:
+Before merging, keep the branch up to date with `origin/main`:
+1. Run `git fetch origin main`, then `git rebase origin/main`.
+2. If the rebase conflicts, inspect `git status` and resolve the unmerged paths.
+   Prefer the change that satisfies the ticket's intent and preserves compatible
+   upstream changes; do not blindly take `ours` or `theirs`.
+3. After resolving, run `git add -A`, `git rebase --continue`, re-run the
+   relevant checks, and confirm `git diff --check` is clean.
+4. If the conflict cannot be resolved safely within the remaining turns, run
+   `git rebase --abort`, set the Linear issue state to "Rework", and add a
+   comment listing the conflicting files and why they could not be resolved.
+
+When all ticket acceptance validations pass, the rebase is clean, and
+`git diff --check` is clean:
 1. Push the branch to origin.
 2. Fast-forward merge the branch into origin/main directly.
 3. Update the Linear issue state directly to "Done".
