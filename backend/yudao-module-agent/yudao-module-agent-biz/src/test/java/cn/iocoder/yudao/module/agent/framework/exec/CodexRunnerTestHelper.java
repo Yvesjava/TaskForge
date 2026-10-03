@@ -13,6 +13,9 @@ import java.util.Locale;
  *   <li>{@code basic <exitCode>}：向 stdout/stderr 各写一行后按退出码退出；</li>
  *   <li>{@code spawn-child <pidFile>}：派生一个长时间休眠的子进程，
  *       将父子 PID 写入文件后等待子进程退出；</li>
+ *   <li>{@code retry-seq <stateFile> <failCount> <successExitCode>}：每次调用
+ *       将序号写入 stateFile，输出带序号的 stdout/stderr，前 failCount 次
+ *       以非零退出码退出，之后以指定退出码退出；</li>
  *   <li>{@code sleep <millis>}：休眠指定毫秒。</li>
  * </ul>
  *
@@ -34,6 +37,8 @@ public final class CodexRunnerTestHelper {
         switch (args[0]) {
             case "basic" -> basic(Integer.parseInt(args[1]));
             case "spawn-child" -> spawnChild(Path.of(args[1]));
+            case "retry-seq" -> retrySequence(Path.of(args[1]), Integer.parseInt(args[2]),
+                    Integer.parseInt(args[3]));
             case "sleep" -> Thread.sleep(Long.parseLong(args[1]));
             default -> System.exit(2);
         }
@@ -54,6 +59,18 @@ public final class CodexRunnerTestHelper {
         long childPid = child.pid();
         Files.writeString(pidFile, parentPid + " " + childPid, StandardCharsets.UTF_8);
         child.waitFor();
+    }
+
+    private static void retrySequence(Path stateFile, int failCount, int successExitCode) throws Exception {
+        int previous = Files.exists(stateFile)
+                ? Integer.parseInt(Files.readString(stateFile, StandardCharsets.UTF_8).trim()) : 0;
+        int attempt = previous + 1;
+        Files.writeString(stateFile, Integer.toString(attempt), StandardCharsets.UTF_8);
+        System.out.println("CODX-RETRY-STDOUT-" + attempt);
+        System.err.println("CODX-RETRY-STDERR-" + attempt);
+        System.out.flush();
+        System.err.flush();
+        System.exit(attempt <= failCount ? 3 : successExitCode);
     }
 
     private static String javaExecutable() {
