@@ -30,6 +30,16 @@ public interface ErrorCodeConstants {
     ErrorCode BRANCH_CREATE_FAILED = new ErrorCode(1_061_001_008, "特性分支创建失败，项目 {}，分支 {}：{}");
     ErrorCode BRANCH_PUSH_FAILED = new ErrorCode(1_061_001_009, "特性分支推送失败，项目 {}，分支 {}：{}");
     ErrorCode BRANCH_DELETE_FAILED = new ErrorCode(1_061_001_010, "特性分支删除失败，项目 {}，分支 {}：{}");
+    ErrorCode WORKTREE_TASK_NO_INVALID = new ErrorCode(1_061_001_011, "工作区任务编号无效：{}");
+    ErrorCode WORKTREE_BRANCH_INVALID = new ErrorCode(1_061_001_012, "工作区分支无效：{}");
+    ErrorCode WORKTREE_PROJECT_CODE_INVALID = new ErrorCode(1_061_001_013, "工作区项目代号无效：{}");
+    ErrorCode WORKTREE_PROJECTS_EMPTY = new ErrorCode(1_061_001_014, "任务未配置任何代码项目");
+    ErrorCode WORKTREE_SUB_DIR_INVALID = new ErrorCode(1_061_001_015, "项目 {} 的子目录映射无效：{}");
+    ErrorCode WORKTREE_SUB_DIR_CONFLICT = new ErrorCode(1_061_001_016, "子目录映射冲突：{}");
+    ErrorCode WORKTREE_CREATE_FAILED = new ErrorCode(1_061_001_017, "项目 {} 工作树挂载失败（子目录 {}）：{}");
+    ErrorCode WORKTREE_ROOT_ESCAPE = new ErrorCode(1_061_001_018, "工作区根目录越界：{}");
+    ErrorCode WORKTREE_WRITE_TASK_DOC_FAILED = new ErrorCode(1_061_001_019, "写入聚合任务文档失败：{}");
+    ErrorCode WORKTREE_GIT_URL_INVALID = new ErrorCode(1_061_001_020, "项目 {} 的仓库地址无效");
 
     // ========== 任务文档模块 1-061-002-000 ==========
     ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");
