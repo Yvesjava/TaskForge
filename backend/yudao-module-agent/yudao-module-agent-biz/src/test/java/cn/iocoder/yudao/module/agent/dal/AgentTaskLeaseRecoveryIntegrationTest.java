@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code markFailedIfRunning} 保持一致。</p>
  */
 @Testcontainers
-class AgentTaskLeaseRecoveryMapperTest {
+class AgentTaskLeaseRecoveryIntegrationTest {
 
     private static final String SELECT_EXPIRED_RUNNING = """
             SELECT *

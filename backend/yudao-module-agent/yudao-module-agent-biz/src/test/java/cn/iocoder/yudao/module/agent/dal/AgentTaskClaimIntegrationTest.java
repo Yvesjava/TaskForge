@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code markTaskRunning} 保持一致，本测试在真实 MySQL 8 容器上验证其行为。</p>
  */
 @Testcontainers
-class AgentTaskClaimMapperTest {
+class AgentTaskClaimIntegrationTest {
 
     private static final String SELECT_NEXT_PENDING = """
             SELECT *
