@@ -16,6 +16,9 @@ import java.util.Objects;
  * 的临时日志采集，因此重试日志、耗时与原因彼此独立；全部尝试通过
  * {@link CodexRetryResult} 归档，供上层写入 {@code execution_log} 与状态回写。
  *
+ * <p>超时属于熔断信号：一旦单次尝试被硬超时终止，立即停止后续重试，避免
+ * 长时间挂起的僵尸进程占用 Worker 资源。
+ *
  * @author TaskForge
  */
 @Component
@@ -60,7 +63,7 @@ public class CodexRetryRunner {
         CodexRunAttempt current = executeAttempt(request, 1);
         attempts.add(current);
 
-        while (!current.isSuccess() && attempts.size() - 1 < maxRetries) {
+        while (!current.isSuccess() && !current.timedOut() && attempts.size() - 1 < maxRetries) {
             int attemptNumber = attempts.size() + 1;
             log.info("[CodexRetryRunner] 自修复重试 attempt={}/{} retryCount={} previousReason={} previousDurationMs={}",
                     attemptNumber, maxRetries + 1, attemptNumber - 1,

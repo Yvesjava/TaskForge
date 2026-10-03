@@ -124,18 +124,27 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
                                        @Param("dependsOnTaskId") Long dependsOnTaskId);
 
     /**
-     * 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约
+     * 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约并写回执行结果
      */
     int markSelfVerifiedIfRunning(@Param("id") Long id,
                                   @Param("workerId") String workerId,
-                                  @Param("generation") Long generation);
+                                  @Param("generation") Long generation,
+                                  @Param("executionLog") String executionLog,
+                                  @Param("retryTimes") Integer retryTimes,
+                                  @Param("costMs") Long costMs,
+                                  @Param("diffStat") String diffStat,
+                                  @Param("workspacePath") String workspacePath);
 
     /**
-     * 执行失败/超时：RUNNING -> FAILED，释放租约并保留日志
+     * 执行失败/超时：RUNNING -> FAILED，释放租约、写回结果并清理工作区引用
      */
     int markFailedIfRunning(@Param("id") Long id,
                             @Param("workerId") String workerId,
-                            @Param("generation") Long generation);
+                            @Param("generation") Long generation,
+                            @Param("executionLog") String executionLog,
+                            @Param("retryTimes") Integer retryTimes,
+                            @Param("costMs") Long costMs,
+                            @Param("diffStat") String diffStat);
 
     /**
      * 验收通过：WAITING_ACCEPTANCE -> ACCEPTED

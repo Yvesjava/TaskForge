@@ -41,6 +41,16 @@ public class ProcessCommandExecutor implements CommandExecutor {
      */
     private static final int MAX_OUTPUT_BYTES = 256 * 1024;
 
+    private final AgentExecProperties properties;
+
+    public ProcessCommandExecutor() {
+        this(new AgentExecProperties());
+    }
+
+    public ProcessCommandExecutor(AgentExecProperties properties) {
+        this.properties = properties == null ? new AgentExecProperties() : properties;
+    }
+
     @Override
     public CommandStepResult execute(CommandSpec command, Path workingDirectory) {
         Objects.requireNonNull(command, "command 不能为空");
@@ -50,7 +60,7 @@ public class ProcessCommandExecutor implements CommandExecutor {
         commandLine.add(command.executable());
         commandLine.addAll(command.arguments());
 
-        Duration timeout = command.timeout() == null ? DEFAULT_TIMEOUT : command.timeout();
+        Duration timeout = command.timeout() == null ? resolveCommandTimeout() : command.timeout();
 
         Path outputFile = null;
         Process process = null;
@@ -107,16 +117,25 @@ public class ProcessCommandExecutor implements CommandExecutor {
     private String readBounded(Path file) {
         try {
             byte[] bytes = Files.readAllBytes(file);
-            if (bytes.length <= MAX_OUTPUT_BYTES) {
+            int maxOutputBytes = maxOutputBytes();
+            if (bytes.length <= maxOutputBytes) {
                 return new String(bytes, StandardCharsets.UTF_8);
             }
-            int keep = MAX_OUTPUT_BYTES / 2;
+            int keep = maxOutputBytes / 2;
             String head = new String(bytes, 0, keep, StandardCharsets.UTF_8);
             String tail = new String(bytes, bytes.length - keep, keep, StandardCharsets.UTF_8);
             return head + "\n...[truncated, " + bytes.length + " bytes]...\n" + tail;
         } catch (IOException e) {
             return "<无法读取验收命令输出：" + e.getMessage() + ">";
         }
+    }
+
+    private Duration resolveCommandTimeout() {
+        return properties.getCommandTimeout() == null ? DEFAULT_TIMEOUT : properties.getCommandTimeout();
+    }
+
+    private int maxOutputBytes() {
+        return properties.getMaxOutputBytes() > 0 ? properties.getMaxOutputBytes() : MAX_OUTPUT_BYTES;
     }
 
     private void deleteQuietly(Path file) {
