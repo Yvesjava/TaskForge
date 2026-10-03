@@ -44,6 +44,7 @@ public interface ErrorCodeConstants {
     ErrorCode WORKTREE_RESIDUE_SCAN_FAILED = new ErrorCode(1_061_001_022, "工作区残留检测失败：{}");
     ErrorCode WORKTREE_WRITE_WORKFLOW_FAILED = new ErrorCode(1_061_001_023, "写入系统级执行约束失败：{}");
     ErrorCode WORKTREE_CLEANUP_FAILED = new ErrorCode(1_061_001_024, "工作区清理失败：{}");
+    ErrorCode BARE_REPO_DELETE_FAILED = new ErrorCode(1_061_001_025, "Bare Repo 缓存清理失败，项目 {}：{}");
 
     // ========== 任务文档模块 1-061-002-000 ==========
     ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");
@@ -84,5 +85,6 @@ public interface ErrorCodeConstants {
 
     // ========== 合并模块 1-061-004-000 ==========
     ErrorCode MERGE_TASK_STATE_INVALID = new ErrorCode(1_061_004_000, "任务当前状态不允许合并：{}");
+    ErrorCode MERGE_CLEANUP_REPOS_NOT_MERGED = new ErrorCode(1_061_004_001, "任务仍有仓库未合并完成，不能清理收尾");
 
 }
