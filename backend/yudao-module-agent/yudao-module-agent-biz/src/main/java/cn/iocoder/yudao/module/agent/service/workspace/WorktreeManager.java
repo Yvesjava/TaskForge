@@ -231,6 +231,34 @@ public class WorktreeManager {
         }
     }
 
+    /**
+     * 从残留聚合目录路径解析任务编号。
+     *
+     * <p>残留目录由 {@link #detectResidue()} 返回，目录名必须符合
+     * {@code dirA-{taskNo}} 约定。解析结果仅供上层补偿流程调用
+     * {@link #destroyCompositeWorkspaceIfPresent(String)}。</p>
+     *
+     * @param residue 残留聚合目录路径
+     * @return 任务编号；不符合约定时返回 {@code null}
+     */
+    public String taskNoOfResidue(Path residue) {
+        if (residue == null || residue.getFileName() == null) {
+            return null;
+        }
+        String name = residue.getFileName().toString();
+        if (!name.startsWith(AGGREGATE_DIR_PREFIX)) {
+            return null;
+        }
+        String taskNo = name.substring(AGGREGATE_DIR_PREFIX.length());
+        if (taskNo.isEmpty() || taskNo.length() > 64
+                || !taskNo.matches(TASK_NO_PATTERN)
+                || taskNo.contains("..")
+                || taskNo.endsWith(".")) {
+            return null;
+        }
+        return taskNo;
+    }
+
     private MountedProject mount(Path root, WorkspaceProject project, String targetBranch) {
         Path targetDir = resolveSubDir(root, project.getSubDir());
         if (Files.exists(targetDir)) {

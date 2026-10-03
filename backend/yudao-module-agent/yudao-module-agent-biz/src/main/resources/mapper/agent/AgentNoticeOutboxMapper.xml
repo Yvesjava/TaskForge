@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.agent.dal.mysql.AgentNoticeOutboxMapper">
+
+    <!-- 扫描到期可重试记录，命中索引 idx_outbox_dispatch（status, next_retry_time, deleted） -->
+    <select id="selectDueOutbox" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentNoticeOutboxDO">
+        SELECT *
+          FROM agent_notice_outbox
+         WHERE status IN ('PENDING', 'FAILED')
+           AND next_retry_time IS NOT NULL
+           AND next_retry_time &lt;= #{now}
+           AND deleted = 0
+         ORDER BY next_retry_time ASC, id ASC
+         LIMIT #{limit}
+    </select>
+
+    <!-- 回写一次投递结果 -->
+    <update id="updateOutboxResult">
+        UPDATE agent_notice_outbox
+           SET status = #{status},
+               retry_count = #{retryCount},
+               next_retry_time = #{nextRetryTime},
+               last_error = #{lastError},
+               update_time = NOW()
+         WHERE id = #{id}
+           AND deleted = 0
+    </update>
+
+</mapper>
