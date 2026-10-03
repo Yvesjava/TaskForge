@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.agent.service.workspace;
 import cn.iocoder.yudao.module.agent.framework.workspace.config.AgentWorkspaceProperties;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandException;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandRunner;
+import cn.iocoder.yudao.module.agent.framework.workspace.git.GitErrorNormalizer;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitRefs;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ import java.util.stream.Stream;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_BRANCH_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_CLEANUP_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_CREATE_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_GIT_URL_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_PROJECTS_EMPTY;
@@ -99,7 +101,7 @@ public class WorktreeManager {
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
-            throw exception(WORKTREE_CREATE_FAILED, "-", "-", "创建聚合根目录失败：" + reasonOf(e));
+            throw exception(WORKTREE_CREATE_FAILED, "-", "-", "创建聚合根目录失败：" + GitErrorNormalizer.detail(e));
         }
 
         List<MountedProject> mounted = new ArrayList<>();
@@ -133,6 +135,56 @@ public class WorktreeManager {
         return aggregateRoot(taskNo);
     }
 
+    /**
+     * 幂等销毁指定任务的聚合工作区。
+     *
+     * <p>清理流程可重复执行：先对每个挂载子目录执行
+     * {@code git worktree remove --force}，再物理删除聚合根目录，最后执行
+     * {@code git worktree prune} 清理各裸仓库残留的 worktree 元数据。
+     * 工作区已不存在时直接返回成功，重复调用不会抛“已删除”错误。
+     *
+     * @param taskNo 任务唯一编号
+     */
+    public void destroyCompositeWorkspaceIfPresent(String taskNo) {
+        validateTaskNo(taskNo);
+        Path root = aggregateRoot(taskNo);
+        if (!Files.isDirectory(root)) {
+            return;
+        }
+
+        List<Path> bareRepos = new ArrayList<>();
+        try (Stream<Path> entries = Files.list(root)) {
+            for (Path entry : entries.sorted().toList()) {
+                if (!Files.isRegularFile(entry.resolve(".git"))) {
+                    continue;
+                }
+                Path bareRepo = resolveBareRepository(entry);
+                if (bareRepo == null) {
+                    continue;
+                }
+                String projectCode = projectCodeOf(bareRepo);
+                removeWorktree(bareRepo, projectCode, entry);
+                if (!bareRepos.contains(bareRepo)) {
+                    bareRepos.add(bareRepo);
+                }
+            }
+        } catch (IOException e) {
+            throw exception(WORKTREE_CLEANUP_FAILED,
+                    GitErrorNormalizer.normalize(e, taskNo, "枚举聚合目录"));
+        }
+
+        try {
+            deleteRecursively(root);
+        } catch (IOException e) {
+            throw exception(WORKTREE_CLEANUP_FAILED,
+                    GitErrorNormalizer.normalize(e, taskNo, "物理删除"));
+        }
+
+        for (Path bareRepo : bareRepos) {
+            pruneWorktree(bareRepo, projectCodeOf(bareRepo));
+        }
+    }
+
     private MountedProject mount(Path root, WorkspaceProject project, String targetBranch) {
         Path targetDir = resolveSubDir(root, project.getSubDir());
         if (Files.exists(targetDir)) {
@@ -144,7 +196,7 @@ public class WorktreeManager {
             gitRunner.run(bareRepo, List.of("worktree", "add", "-b", targetBranch,
                     targetDir.toString(), "refs/heads/" + project.getBaseBranch()));
         } catch (GitCommandException e) {
-            throw exception(WORKTREE_CREATE_FAILED, project.getProjectCode(), project.getSubDir(), reasonOf(e));
+            throw exception(WORKTREE_CREATE_FAILED, project.getProjectCode(), project.getSubDir(), GitErrorNormalizer.detail(e));
         }
         return MountedProject.builder()
                 .projectCode(project.getProjectCode())
@@ -160,13 +212,24 @@ public class WorktreeManager {
             Files.createDirectories(aiDir);
             Files.writeString(aiDir.resolve("task.md"), taskDoc == null ? "" : taskDoc, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw exception(WORKTREE_WRITE_TASK_DOC_FAILED, reasonOf(e));
+            throw exception(WORKTREE_WRITE_TASK_DOC_FAILED, GitErrorNormalizer.detail(e));
         }
     }
 
     private void rollback(List<MountedProject> mounted, Path root, boolean taskDocWritten) {
         for (int i = mounted.size() - 1; i >= 0; i--) {
-            removeWorktree(mounted.get(i));
+            MountedProject project = mounted.get(i);
+            Path bareRepo = bareRepoManager.repositoryPath(project.getProjectCode());
+            try {
+                removeWorktree(bareRepo, project.getProjectCode(), project.getPath());
+            } catch (RuntimeException ignored) {
+                // 回滚为尽力而为：残留目录交由补偿清理
+            }
+            try {
+                pruneWorktree(bareRepo, project.getProjectCode());
+            } catch (RuntimeException ignored) {
+                // 回滚为尽力而为：残留目录交由补偿清理
+            }
         }
         try {
             if (taskDocWritten) {
@@ -179,23 +242,58 @@ public class WorktreeManager {
         }
     }
 
-    private void removeWorktree(MountedProject project) {
-        Path targetDir = project.getPath();
-        if (!Files.exists(targetDir)) {
+    private void removeWorktree(Path bareRepo, String projectCode, Path worktreeDir) {
+        if (!Files.exists(worktreeDir)) {
             return;
         }
-        Path bareRepo = bareRepoManager.repositoryPath(project.getProjectCode());
         try {
-            gitRunner.run(bareRepo, List.of("worktree", "remove", "--force", targetDir.toString()));
-        } catch (GitCommandException ignored) {
-            // 命令失败时继续执行物理删除，确保目录不残留
+            gitRunner.run(bareRepo, List.of("worktree", "remove", "--force", worktreeDir.toString()));
+        } catch (GitCommandException e) {
+            throw exception(WORKTREE_CLEANUP_FAILED,
+                    GitErrorNormalizer.normalize(e, projectCode, "worktree remove"));
         }
         try {
-            deleteRecursively(targetDir);
+            deleteRecursively(worktreeDir);
+        } catch (IOException e) {
+            throw exception(WORKTREE_CLEANUP_FAILED,
+                    GitErrorNormalizer.normalize(e, projectCode, "物理删除"));
+        }
+    }
+
+    private void pruneWorktree(Path bareRepo, String projectCode) {
+        try {
             gitRunner.run(bareRepo, List.of("worktree", "prune"));
-        } catch (Exception ignored) {
-            // 清理尽力而为
+        } catch (GitCommandException e) {
+            throw exception(WORKTREE_CLEANUP_FAILED,
+                    GitErrorNormalizer.normalize(e, projectCode, "worktree prune"));
         }
+    }
+
+    private Path resolveBareRepository(Path worktreeDir) {
+        Path gitFile = worktreeDir.resolve(".git");
+        try {
+            String content = Files.readString(gitFile).trim();
+            String prefix = "gitdir: ";
+            if (!content.startsWith(prefix)) {
+                return null;
+            }
+            Path gitDir = Paths.get(content.substring(prefix.length())).toAbsolutePath().normalize();
+            Path worktreesDir = gitDir.getParent();
+            if (worktreesDir == null || !"worktrees".equals(worktreesDir.getFileName().toString())) {
+                return null;
+            }
+            return worktreesDir.getParent();
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String projectCodeOf(Path bareRepo) {
+        if (bareRepo == null) {
+            return "-";
+        }
+        String fileName = bareRepo.getFileName().toString();
+        return fileName.endsWith(".git") ? fileName.substring(0, fileName.length() - ".git".length()) : fileName;
     }
 
     private void validateTaskNo(String taskNo) {
@@ -325,17 +423,6 @@ public class WorktreeManager {
                 }
             });
         }
-    }
-
-    private String reasonOf(Exception e) {
-        if (e instanceof GitCommandException git) {
-            String output = git.getSanitizedOutput();
-            if (output.isEmpty()) {
-                return git.getMessage();
-            }
-            return git.getMessage() + "：" + output;
-        }
-        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 
 }
