@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Codex/Claude 子进程执行配置
@@ -35,5 +37,12 @@ public class AgentExecProperties {
      * stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记
      */
     private int maxOutputBytes = 256 * 1024;
+
+    /**
+     * 构建/测试命令白名单（可执行文件基名，不区分大小写）
+     */
+    private List<String> allowedCommands = new ArrayList<>(List.of(
+            "mvn", "mvnw", "gradle", "npm", "pnpm", "yarn", "npx",
+            "make", "go", "dotnet", "pytest", "python", "python3", "node", "java"));
 
 }
