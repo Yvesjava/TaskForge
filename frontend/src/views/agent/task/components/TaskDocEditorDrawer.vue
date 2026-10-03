@@ -1,7 +1,7 @@
 <template>
   <el-drawer
     v-model="drawerVisible"
-    title="编辑任务文档"
+    :title="isCreate ? '提交新任务' : '编辑任务文档'"
     size="76%"
     direction="rtl"
     :close-on-click-modal="false"
@@ -9,7 +9,7 @@
     @closed="handleClosed"
   >
     <div v-loading="loading" class="task-doc-editor">
-      <el-descriptions :column="2" border size="small" class="task-doc-meta">
+      <el-descriptions v-if="!isCreate" :column="2" border size="small" class="task-doc-meta">
         <el-descriptions-item label="任务编号">{{
           currentTask?.taskNo || '-'
         }}</el-descriptions-item>
@@ -25,6 +25,101 @@
       </el-descriptions>
 
       <el-form :model="form" label-width="130px">
+        <template v-if="isCreate">
+          <el-divider content-position="left">基本信息</el-divider>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="任务编号" prop="taskId">
+                <el-input
+                  v-model="form.frontMatter.taskId"
+                  placeholder="如 TASK-20261001-001"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="任务标题" prop="title">
+                <el-input v-model="form.frontMatter.title" placeholder="请输入任务标题" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="目标分支" prop="targetBranch">
+                <el-input
+                  v-model="form.frontMatter.targetBranch"
+                  placeholder="如 feat/task-001"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="仓库模式">
+                <el-radio-group v-model="repoMode">
+                  <el-radio value="single">单仓任务</el-radio>
+                  <el-radio value="multi">多仓任务</el-radio>
+                </el-radio-group>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <template v-if="repoMode === 'single'">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="Git 仓库地址" prop="repoUrl">
+                  <el-input
+                    v-model="form.frontMatter.repoUrl"
+                    placeholder="git@host:path 或 https://..."
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="基线分支" prop="baseBranch">
+                  <el-input v-model="form.frontMatter.baseBranch" placeholder="如 main" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </template>
+
+          <template v-else>
+            <el-divider content-position="left">项目引用</el-divider>
+            <div
+              v-for="(project, index) in projects"
+              :key="index"
+              class="task-project-ref"
+            >
+              <el-row :gutter="12">
+                <el-col :span="7">
+                  <el-form-item :label="`项目代号 ${index + 1}`" label-width="100px">
+                    <el-input v-model="project.code" placeholder="project-code" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="7">
+                  <el-form-item label="基线分支" label-width="76px">
+                    <el-input v-model="project.baseBranch" placeholder="main" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="7">
+                  <el-form-item label="子目录" label-width="64px">
+                    <el-input v-model="project.subDir" placeholder="backend" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="3">
+                  <el-button
+                    link
+                    type="danger"
+                    :disabled="projects.length <= 1"
+                    @click="removeProject(index)"
+                  >
+                    删除
+                  </el-button>
+                </el-col>
+              </el-row>
+            </div>
+            <el-button link type="primary" @click="addProject">
+              <Icon icon="ep:plus" class="mr-4px" /> 新增项目引用
+            </el-button>
+          </template>
+        </template>
+
         <el-divider content-position="left">执行参数</el-divider>
         <el-row :gutter="16">
           <el-col :span="8">
@@ -115,7 +210,8 @@ import {
   parseTaskDocument,
   type TaskDocumentSectionKey,
   type TaskDocumentSections,
-  type TaskFrontMatter
+  type TaskFrontMatter,
+  type TaskProjectRef
 } from '../taskDoc'
 
 /** 任务文档编辑抽屉 */
@@ -132,6 +228,11 @@ const loading = ref(false)
 const saving = ref(false)
 const docVersion = ref(0)
 const currentTask = ref<{ id?: number; taskNo?: string }>()
+const mode = ref<'create' | 'edit'>('edit')
+const repoMode = ref<'single' | 'multi'>('single')
+const projects = ref<TaskProjectRef[]>([])
+
+const isCreate = computed(() => mode.value === 'create')
 
 const SECTION_LABELS: Record<TaskDocumentSectionKey, string> = {
   goal: '需求目标与上下文',
@@ -150,6 +251,7 @@ const form = reactive<{
 
 /** 打开编辑抽屉；row 需携带完整 taskDoc 与当前 docVersion */
 const open = (row: { id: number; taskNo?: string; docVersion: number; taskDoc: string }) => {
+  mode.value = 'edit'
   currentTask.value = row
   docVersion.value = Number(row.docVersion) || 0
   resetForm()
@@ -171,17 +273,66 @@ const open = (row: { id: number; taskNo?: string; docVersion: number; taskDoc: s
   drawerVisible.value = true
 }
 
-defineExpose({ open })
+/** 打开新建抽屉，用于投递新任务文档 */
+const openCreate = () => {
+  mode.value = 'create'
+  currentTask.value = undefined
+  docVersion.value = 0
+  repoMode.value = 'single'
+  resetForm()
+  form.frontMatter.priority = 100
+  form.frontMatter.timeoutMinutes = 30
+  projects.value = [{ code: '', baseBranch: '', subDir: '' }]
+  drawerVisible.value = true
+}
+
+defineExpose({ open, openCreate })
+
+const addProject = () => {
+  projects.value.push({ code: '', baseBranch: '', subDir: '' })
+}
+
+const removeProject = (index: number) => {
+  projects.value.splice(index, 1)
+}
 
 /** 保存文档与执行参数 */
 const handleSave = async () => {
-  const taskId = currentTask.value?.id
-  if (!taskId) {
-    return
-  }
   if (!form.frontMatter.timeoutMinutes || form.frontMatter.timeoutMinutes < 1) {
     message.warning('请填写有效的超时时长（1-1440 分钟）')
     return
+  }
+  if (isCreate.value) {
+    if (!form.frontMatter.taskId?.trim()) {
+      message.warning('请填写任务编号')
+      return
+    }
+    if (!form.frontMatter.title?.trim()) {
+      message.warning('请填写任务标题')
+      return
+    }
+    if (!form.frontMatter.targetBranch?.trim()) {
+      message.warning('请填写目标分支')
+      return
+    }
+    if (repoMode.value === 'single') {
+      if (!form.frontMatter.repoUrl?.trim()) {
+        message.warning('请填写 Git 仓库地址')
+        return
+      }
+      if (!form.frontMatter.baseBranch?.trim()) {
+        message.warning('请填写基线分支')
+        return
+      }
+    } else {
+      const invalid = projects.value.some(
+        (item) => !item.code.trim() || !item.baseBranch.trim() || !item.subDir.trim()
+      )
+      if (invalid) {
+        message.warning('请完整填写每个项目引用的代号、基线分支与子目录')
+        return
+      }
+    }
   }
   for (const key of Object.keys(SECTION_LABELS) as TaskDocumentSectionKey[]) {
     if (!form.sections[key].trim()) {
@@ -192,25 +343,39 @@ const handleSave = async () => {
 
   const priority = form.frontMatter.priority ?? 100
   const dependsOnTaskId = form.frontMatter.dependsOnTaskId ?? undefined
+  const frontMatter = { ...form.frontMatter, priority, dependsOnTaskId }
+  if (isCreate.value) {
+    if (repoMode.value === 'multi') {
+      frontMatter.projects = projects.value.map((item) => ({
+        code: item.code.trim(),
+        baseBranch: item.baseBranch.trim(),
+        subDir: item.subDir.trim()
+      }))
+    } else {
+      frontMatter.projects = undefined
+    }
+  }
   const document = buildTaskDocument(
-    { ...form.frontMatter, priority, dependsOnTaskId },
+    frontMatter,
     form.sections
   )
 
   saving.value = true
   try {
-    const response = await AgentTaskApi.updateTaskDocument(
-      taskId,
-      {
-        docVersion: docVersion.value,
-        document,
-        timeoutMinutes: form.frontMatter.timeoutMinutes,
-        priority,
-        dependsOnTaskId
-      },
-      String(docVersion.value)
-    )
-    message.success('任务文档已保存')
+    const response = isCreate.value
+      ? await AgentTaskApi.submit(document)
+      : await AgentTaskApi.updateTaskDocument(
+          currentTask.value!.id!,
+          {
+            docVersion: docVersion.value,
+            document,
+            timeoutMinutes: form.frontMatter.timeoutMinutes,
+            priority,
+            dependsOnTaskId
+          },
+          String(docVersion.value)
+        )
+    message.success(isCreate.value ? '任务已提交' : '任务文档已保存')
     drawerVisible.value = false
     emit('success', response)
   } catch (error) {
@@ -243,12 +408,17 @@ const handleClosed = () => {
 const resetForm = () => {
   form.frontMatter = {}
   form.sections = { goal: '', plan: '', steps: '', criteria: '' }
+  projects.value = []
 }
 </script>
 
 <style scoped>
 .task-doc-editor {
   padding-bottom: 8px;
+}
+
+.task-project-ref {
+  margin-bottom: 8px;
 }
 
 .task-doc-meta {

@@ -9,3 +9,5 @@ auto-*.d.ts
 .history
 output/
 .playwright-cli/
+test-results/
+playwright-report/

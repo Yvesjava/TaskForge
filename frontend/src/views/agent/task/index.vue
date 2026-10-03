@@ -48,6 +48,14 @@
       <el-form-item>
         <el-button @click="handleQuery"><Icon icon="ep:search" class="mr-5px" /> 搜索</el-button>
         <el-button @click="resetQuery"><Icon icon="ep:refresh" class="mr-5px" /> 重置</el-button>
+        <el-button
+          type="primary"
+          plain
+          @click="handleCreate"
+          v-hasPermi="['agent:task:submit']"
+        >
+          <Icon icon="ep:plus" class="mr-5px" /> 提交新任务
+        </el-button>
       </el-form-item>
     </el-form>
   </ContentWrap>
@@ -193,12 +201,14 @@
   </ContentWrap>
 
   <TaskDiffViewerDialog ref="diffViewerRef" />
+  <TaskDocEditorDrawer ref="docEditorRef" @success="getList" />
 </template>
 
 <script setup lang="ts">
 import { dateFormatter } from '@/utils/formatTime'
 import { AgentTask, AgentTaskApi } from '@/api/agent/task'
 import TaskDiffViewerDialog from './components/TaskDiffViewerDialog.vue'
+import TaskDocEditorDrawer from './components/TaskDocEditorDrawer.vue'
 import {
   AGENT_TASK_STATUS_OPTIONS,
   agentTaskStatusLabel,
@@ -225,6 +235,7 @@ const loading = ref(true) // 列表的加载中
 const list = ref<AgentTask[]>([]) // 列表的数据
 const total = ref(0) // 列表的总条数
 const diffViewerRef = ref() // Diff/日志/报告/分支弹窗
+const docEditorRef = ref() // 任务文档新建/编辑抽屉
 const queryParams = reactive({
   pageNo: 1,
   pageSize: 10,
@@ -262,6 +273,11 @@ const resetQuery = () => {
 /** 查看任务 Diff/日志/测试报告/分支信息 */
 const handleViewDiff = (row: AgentTask) => {
   diffViewerRef.value?.open(row)
+}
+
+/** 提交新任务 */
+const handleCreate = () => {
+  docEditorRef.value?.openCreate()
 }
 
 /** 暂停任务 */

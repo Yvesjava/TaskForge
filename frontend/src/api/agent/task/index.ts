@@ -28,6 +28,16 @@ export interface AgentTaskUpdateDocumentResp {
   operationId: string
 }
 
+/** 任务投递响应（对应后端 AgentTaskSubmitRespVO） */
+export interface AgentTaskSubmitResp {
+  taskId: number
+  taskNo: string
+  status: string
+  docVersion: number
+  executionGeneration: number
+  operationId: string
+}
+
 /** AI 研发任务信息 */
 export interface AgentTask {
   id?: number // 任务主键 ID
@@ -138,6 +148,15 @@ export const AgentTaskApi = {
   // 查询任务详情
   getTask: async (id: number) => {
     return await request.get({ url: '/agent/task/get?id=' + id })
+  },
+
+  // 投递任务文档
+  submit: async (document: string): Promise<AgentTaskSubmitResp> => {
+    return await request.post({
+      url: '/agent/task/submit',
+      data: { document },
+      headers: idempotencyHeaders()
+    })
   },
 
   // 暂停任务
