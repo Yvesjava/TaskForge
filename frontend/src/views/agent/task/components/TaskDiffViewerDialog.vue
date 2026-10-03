@@ -307,17 +307,17 @@ const mergeStatusTagType = (value?: string) => {
 }
 
 .code-block {
-  margin: 0;
   padding: 12px;
+  margin: 0;
   overflow: auto;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 1.6;
   color: var(--el-text-color-primary);
+  white-space: pre;
   background: var(--el-fill-color-lighter);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
-  white-space: pre;
 }
 
 .log-block {
@@ -335,8 +335,8 @@ const mergeStatusTagType = (value?: string) => {
 
 .file-list,
 .plain-list {
-  margin: 0;
   padding-left: 20px;
+  margin: 0;
   line-height: 1.9;
 }
 
@@ -350,7 +350,7 @@ const mergeStatusTagType = (value?: string) => {
 
 .report-notes {
   margin: 0;
-  white-space: pre-wrap;
   color: var(--el-text-color-regular);
+  white-space: pre-wrap;
 }
 </style>

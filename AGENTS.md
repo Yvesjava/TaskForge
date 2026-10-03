@@ -105,7 +105,7 @@ The frontend listens on `http://localhost:3000` and sends API requests to `http:
 
 - Repo-wide encoding, line endings, and indentation are defined by the root `.editorconfig` and `.gitattributes` (UTF-8, LF, no tabs); `frontend/.editorconfig` governs frontend files.
 - Backend Java uses 4-space indentation and Yudao layer naming (`Controller` / `Service` / `ServiceImpl` / `Mapper` / `DO` / `VO` / `Convert`). There is no backend formatter plugin yet, so format consistency is enforced by review plus compilation.
-- Frontend formatting is enforced by ESLint, Prettier, and Stylelint. Run `pnpm lint:eslint` / `pnpm lint:style` / `pnpm lint:format` (fix) from `frontend/`. Note: `pnpm lint` currently reports 22 pre-existing upstream stylelint violations (tracked by TASK-BASE-05 / LZC-67); until that is fixed, lint only the files you changed (lint-staged) and never reformat unrelated modules.
+- Frontend formatting is enforced by ESLint, Prettier, and Stylelint. Run `pnpm lint:eslint` / `pnpm lint:style` / `pnpm lint:format` (fix) from `frontend/`. `pnpm lint` is a mandatory gate and must pass with 0 errors on a clean checkout; lint only the files you changed (lint-staged) and never reformat unrelated modules.
 - Keep the full convention set in `docs/工程约定.md`; do not restate divergent rules here or in `README.md`.
 
 ### Logging
