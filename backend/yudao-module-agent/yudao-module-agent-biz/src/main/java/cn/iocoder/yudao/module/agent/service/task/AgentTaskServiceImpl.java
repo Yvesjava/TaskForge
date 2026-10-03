@@ -1,7 +1,9 @@
 package cn.iocoder.yudao.module.agent.service.task;
 
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
@@ -133,6 +135,16 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         }
 
         return buildResponse(task, operationLog);
+    }
+
+    @Override
+    public AgentTaskDO getTask(Long id) {
+        return taskMapper.selectById(id);
+    }
+
+    @Override
+    public PageResult<AgentTaskDO> getTaskPage(AgentTaskPageReqVO pageReqVO) {
+        return taskMapper.selectPage(pageReqVO);
     }
 
     @Override

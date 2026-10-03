@@ -1,27 +1,37 @@
 package cn.iocoder.yudao.module.agent.controller.admin.task;
 
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskCancelReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskRejectReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
+import cn.iocoder.yudao.module.agent.service.task.AgentTaskResetService;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import static cn.iocoder.yudao.framework.common.pojo.CommonResult.success;
@@ -34,6 +44,24 @@ public class AgentTaskController {
 
     @Resource
     private AgentTaskService taskService;
+
+    @Resource
+    private AgentTaskResetService resetService;
+
+    @GetMapping("/get")
+    @Operation(summary = "获得任务详情")
+    @Parameter(name = "id", description = "任务编号", required = true, example = "9012")
+    @PreAuthorize("@ss.hasPermission('agent:task:query')")
+    public CommonResult<AgentTaskRespVO> getTask(@RequestParam("id") Long id) {
+        return success(BeanUtils.toBean(taskService.getTask(id), AgentTaskRespVO.class));
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "获得任务分页")
+    @PreAuthorize("@ss.hasPermission('agent:task:query')")
+    public CommonResult<PageResult<AgentTaskRespVO>> getTaskPage(@Validated AgentTaskPageReqVO pageReqVO) {
+        return success(BeanUtils.toBean(taskService.getTaskPage(pageReqVO), AgentTaskRespVO.class));
+    }
 
     @PostMapping("/submit")
     @Operation(summary = "投递任务文档")
@@ -81,6 +109,17 @@ public class AgentTaskController {
             @Valid @RequestBody(required = false) AgentTaskCancelReqVO reqVO,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         return success(taskService.cancel(id, reqVO == null ? null : reqVO.getCancelReason(), idempotencyKey));
+    }
+
+    @PostMapping("/{id}/reset")
+    @Operation(summary = "重置任务")
+    @PreAuthorize("@ss.hasPermission('agent:task:reset')")
+    public CommonResult<AgentTaskResetRespVO> reset(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody(required = false) AgentTaskResetReqVO reqVO,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        boolean keepPaused = reqVO != null && Boolean.TRUE.equals(reqVO.getKeepPaused());
+        return success(resetService.reset(id, keepPaused, idempotencyKey));
     }
 
     @PostMapping("/{id}/re-enqueue")

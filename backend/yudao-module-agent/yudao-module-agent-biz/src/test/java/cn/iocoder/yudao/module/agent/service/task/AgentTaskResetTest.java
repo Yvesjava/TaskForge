@@ -3,8 +3,10 @@ package cn.iocoder.yudao.module.agent.service.task;
 import cn.iocoder.yudao.framework.common.exception.ServiceException;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetRespVO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
+import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskProjectDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
+import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskOperationLogMapper;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskProjectMapper;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskAction;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskStatus;
@@ -49,9 +51,13 @@ class AgentTaskResetTest {
     private static final Long TASK_ID = 9012L;
     private static final String TASK_NO = "TASK-20261001-088";
     private static final String TARGET_BRANCH = "feature/TASK-20261001-088";
+    private static final String IDEMPOTENCY_KEY = "reset-idempotency-key-0001";
 
     @Mock
     private AgentTaskMapper taskMapper;
+
+    @Mock
+    private AgentTaskOperationLogMapper operationLogMapper;
 
     @Mock
     private AgentTaskStateMachine stateMachine;
@@ -68,7 +74,7 @@ class AgentTaskResetTest {
         when(stateMachine.transition(any(AgentTaskTransitionCommand.class)))
                 .thenReturn(AgentTaskStatus.RESETTING, AgentTaskStatus.PENDING);
 
-        AgentTaskResetRespVO response = resetService.reset(TASK_ID, false);
+        AgentTaskResetRespVO response = resetService.reset(TASK_ID, false, IDEMPOTENCY_KEY);
 
         assertThat(response.getTaskId()).isEqualTo(TASK_ID);
         assertThat(response.getTaskNo()).isEqualTo(TASK_NO);
@@ -91,7 +97,7 @@ class AgentTaskResetTest {
         when(stateMachine.transition(any(AgentTaskTransitionCommand.class)))
                 .thenReturn(AgentTaskStatus.RESETTING, AgentTaskStatus.PAUSED);
 
-        AgentTaskResetRespVO response = resetService.reset(TASK_ID, true);
+        AgentTaskResetRespVO response = resetService.reset(TASK_ID, true, IDEMPOTENCY_KEY);
 
         assertThat(response.getStatus()).isEqualTo(AgentTaskStatus.PAUSED.getValue());
         List<AgentTaskTransitionCommand> commands = capturedTransitions();
@@ -104,7 +110,7 @@ class AgentTaskResetTest {
     void reset_rejectsWhenTaskMissing() {
         when(taskMapper.selectById(TASK_ID)).thenReturn(null);
 
-        assertThatThrownBy(() -> resetService.reset(TASK_ID, false))
+        assertThatThrownBy(() -> resetService.reset(TASK_ID, false, IDEMPOTENCY_KEY))
                 .isInstanceOf(ServiceException.class)
                 .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
                         .isEqualTo(ErrorCodeConstants.TASK_NOT_FOUND.getCode()));
@@ -117,7 +123,7 @@ class AgentTaskResetTest {
         when(taskMapper.selectById(TASK_ID)).thenReturn(
                 AgentTaskDO.builder().id(TASK_ID).taskNo(TASK_NO).status("RUNNING").build());
 
-        assertThatThrownBy(() -> resetService.reset(TASK_ID, false))
+        assertThatThrownBy(() -> resetService.reset(TASK_ID, false, IDEMPOTENCY_KEY))
                 .isInstanceOf(ServiceException.class)
                 .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
                         .isEqualTo(ErrorCodeConstants.TASK_CANNOT_RESET_NOT_PAUSED.getCode()));
@@ -133,7 +139,7 @@ class AgentTaskResetTest {
         doThrow(new ServiceException(ErrorCodeConstants.WORKTREE_CLEANUP_FAILED))
                 .when(cleanupDelegate).cleanup(any(ResetCleanupContext.class));
 
-        assertThatThrownBy(() -> resetService.reset(TASK_ID, false))
+        assertThatThrownBy(() -> resetService.reset(TASK_ID, false, IDEMPOTENCY_KEY))
                 .isInstanceOf(ServiceException.class);
 
         ArgumentCaptor<AgentTaskTransitionCommand> captor = ArgumentCaptor.forClass(AgentTaskTransitionCommand.class);
@@ -165,6 +171,7 @@ class AgentTaskResetTest {
 
         AgentTaskResetServiceImpl service = new AgentTaskResetServiceImpl();
         ReflectionTestUtils.setField(service, "taskMapper", taskMapper);
+        ReflectionTestUtils.setField(service, "operationLogMapper", operationLogMapper);
         ReflectionTestUtils.setField(service, "stateMachine", stateMachine);
         ReflectionTestUtils.setField(service, "cleanupDelegate", realDelegate);
 
@@ -172,13 +179,31 @@ class AgentTaskResetTest {
         when(stateMachine.transition(any(AgentTaskTransitionCommand.class)))
                 .thenReturn(AgentTaskStatus.RESETTING, AgentTaskStatus.PENDING);
 
-        AgentTaskResetRespVO response = service.reset(TASK_ID, false);
+        AgentTaskResetRespVO response = service.reset(TASK_ID, false, IDEMPOTENCY_KEY);
 
         assertThat(response.getStatus()).isEqualTo(AgentTaskStatus.PENDING.getValue());
         List<AgentTaskTransitionCommand> commands = capturedTransitions();
         assertThat(commands).hasSize(2);
         assertThat(commands.get(1).getAction()).isEqualTo(AgentTaskAction.CLEANUP_PASS);
         assertThat(commands.get(1).getTargetStatus()).isEqualTo(AgentTaskStatus.PENDING);
+    }
+
+    @Test
+    void reset_replaysExistingIdempotencyKey() {
+        when(operationLogMapper.selectByTaskIdAndRequestKey(TASK_ID, IDEMPOTENCY_KEY))
+                .thenReturn(AgentTaskOperationLogDO.builder()
+                        .taskId(TASK_ID)
+                        .action(AgentTaskAction.RESET.getValue())
+                        .build());
+        when(taskMapper.selectById(TASK_ID)).thenReturn(pausedTask());
+
+        AgentTaskResetRespVO response = resetService.reset(TASK_ID, false, IDEMPOTENCY_KEY);
+
+        assertThat(response.getTaskId()).isEqualTo(TASK_ID);
+        assertThat(response.getTaskNo()).isEqualTo(TASK_NO);
+        assertThat(response.getStatus()).isEqualTo(AgentTaskStatus.PAUSED.getValue());
+        verifyNoInteractions(stateMachine);
+        verifyNoInteractions(cleanupDelegate);
     }
 
     private List<AgentTaskTransitionCommand> capturedTransitions() {
