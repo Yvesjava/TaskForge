@@ -38,6 +38,12 @@
             <artifactId>yudao-spring-boot-starter-biz-tenant</artifactId>
         </dependency>
 
+        <!-- Redis 租约与心跳：StringRedisTemplate + Redisson 连接工厂 -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-spring-boot-starter-redis</artifactId>
+        </dependency>
+
         <!-- database migration: 四类表结构由 Flyway 在 taskforge profile 启动时执行 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -82,6 +88,11 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.fppt</groupId>
+            <artifactId>jedis-mock</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
