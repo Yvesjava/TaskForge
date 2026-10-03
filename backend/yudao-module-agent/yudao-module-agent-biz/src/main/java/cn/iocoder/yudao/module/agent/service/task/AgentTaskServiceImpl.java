@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.agent.service.task;
 
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
@@ -8,6 +9,8 @@ import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskOperationLogMapper;
+import cn.iocoder.yudao.module.agent.enums.AgentTaskAction;
+import cn.iocoder.yudao.module.agent.enums.AgentTaskStatus;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocument;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentParser;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentSectionValidator;
@@ -67,6 +70,9 @@ public class AgentTaskServiceImpl implements AgentTaskService {
 
     @Resource
     private AgentTaskOperationLogMapper operationLogMapper;
+
+    @Resource
+    private AgentTaskStateMachine stateMachine;
 
     @Override
     public AgentTaskSubmitRespVO submit(String document, String idempotencyKey) {
@@ -190,6 +196,70 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         return buildUpdateResponse(updatedTask != null ? updatedTask : task, operationLog);
     }
 
+    @Override
+    public AgentTaskOperationRespVO pause(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.PAUSE, null, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO resume(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.RESUME, null, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO cancel(Long id, String cancelReason, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.CANCEL, cancelReason, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO reEnqueue(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.RE_ENQUEUE, null, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO deleteTask(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.DELETE, null, idempotencyKey);
+    }
+
+    /**
+     * 生命周期动作统一入口：幂等重放、读取真实状态、交由状态机执行条件更新与审计。
+     */
+    private AgentTaskOperationRespVO doLifecycleTransition(Long id, AgentTaskAction action,
+                                                           String reason, String idempotencyKey) {
+        validateIdempotencyKey(idempotencyKey);
+
+        // 1. 幂等键快速命中：同一任务 + 同一幂等键已执行过，直接返回第一次结果
+        AgentTaskOperationLogDO existingLog = operationLogMapper.selectByTaskIdAndRequestKey(id, idempotencyKey);
+        if (existingLog != null) {
+            AgentTaskDO existingTask = taskMapper.selectById(id);
+            if (existingTask != null) {
+                return buildOperationResponse(existingTask, existingLog);
+            }
+        }
+
+        // 2. 读取真实状态，避免信任前端传入状态
+        AgentTaskDO task = taskMapper.selectById(id);
+        if (task == null) {
+            throw exception(TASK_NOT_FOUND);
+        }
+
+        // 3. 组装转换命令并交给状态机，非法状态由状态机返回业务错误且不落任何数据
+        AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
+                .taskId(id)
+                .taskNo(task.getTaskNo())
+                .action(action)
+                .fromStatus(AgentTaskStatus.valueOfCode(task.getStatus()))
+                .cancelReason(reason)
+                .requestIdempotencyKey(idempotencyKey)
+                .build();
+        stateMachine.transition(command);
+
+        // 4. 重新读取最新任务与审计记录，返回权威结果
+        AgentTaskDO updatedTask = taskMapper.selectById(id);
+        AgentTaskOperationLogDO operationLog = operationLogMapper.selectByTaskIdAndRequestKey(id, idempotencyKey);
+        return buildOperationResponse(updatedTask != null ? updatedTask : task, operationLog);
+    }
+
     private void validateIdempotencyKey(String idempotencyKey) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw exception(TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED);
@@ -296,6 +366,17 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         response.setDocVersion(task.getDocVersion());
         response.setExecutionGeneration(task.getExecutionGeneration());
         response.setOperationId("op_" + operationLog.getId());
+        return response;
+    }
+
+    private AgentTaskOperationRespVO buildOperationResponse(AgentTaskDO task, AgentTaskOperationLogDO operationLog) {
+        AgentTaskOperationRespVO response = new AgentTaskOperationRespVO();
+        response.setTaskId(task.getId());
+        response.setTaskNo(task.getTaskNo());
+        response.setStatus(task.getStatus());
+        response.setDocVersion(task.getDocVersion());
+        response.setExecutionGeneration(task.getExecutionGeneration());
+        response.setOperationId(operationLog == null ? null : "op_" + operationLog.getId());
         return response;
     }
 
