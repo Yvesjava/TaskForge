@@ -80,6 +80,10 @@ public class AgentTaskTransitionCommand {
      * 打回反馈（REJECT）
      */
     private String feedback;
+    /**
+     * 操作涉及的文档版本快照（ACCEPT、REJECT、MERGE_CONFLICT 等人工入口）
+     */
+    private Integer docVersion;
 
     /**
      * 请求幂等键；为空时由状态机生成内部追踪键

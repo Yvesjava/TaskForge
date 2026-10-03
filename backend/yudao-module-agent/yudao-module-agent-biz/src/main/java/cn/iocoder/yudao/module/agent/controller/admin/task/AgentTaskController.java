@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.agent.controller.admin.task;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskCancelReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskRejectReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
@@ -98,6 +99,34 @@ public class AgentTaskController {
             @PathVariable("id") Long id,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         return success(taskService.deleteTask(id, idempotencyKey));
+    }
+
+    @PostMapping("/{id}/accept")
+    @Operation(summary = "验收通过")
+    @PreAuthorize("@ss.hasPermission('agent:task:accept')")
+    public CommonResult<AgentTaskOperationRespVO> accept(
+            @PathVariable("id") Long id,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return success(taskService.accept(id, idempotencyKey));
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "打回任务")
+    @PreAuthorize("@ss.hasPermission('agent:task:reject')")
+    public CommonResult<AgentTaskOperationRespVO> reject(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody AgentTaskRejectReqVO reqVO,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return success(taskService.reject(id, reqVO.getFeedback(), idempotencyKey));
+    }
+
+    @PostMapping("/{id}/merge-conflict")
+    @Operation(summary = "合并冲突转人工处理")
+    @PreAuthorize("@ss.hasPermission('agent:task:merge-conflict')")
+    public CommonResult<AgentTaskOperationRespVO> markMergeConflict(
+            @PathVariable("id") Long id,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        return success(taskService.markMergeConflict(id, idempotencyKey));
     }
 
 }

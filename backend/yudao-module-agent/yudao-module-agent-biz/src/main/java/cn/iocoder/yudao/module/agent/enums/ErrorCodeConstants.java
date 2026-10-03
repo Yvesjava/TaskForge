@@ -79,5 +79,7 @@ public interface ErrorCodeConstants {
     ErrorCode TASK_STATUS_TRANSITION_TARGET_REQUIRED = new ErrorCode(1_061_003_010, "动作 {} 存在多个目标状态，必须显式指定目标状态");
     ErrorCode TASK_STATUS_UPDATE_CONFLICT = new ErrorCode(1_061_003_011, "任务 {} 状态已变化，条件更新失败：当前状态 {}，动作 {}");
     ErrorCode TASK_CANNOT_RESET_NOT_PAUSED = new ErrorCode(1_061_003_012, "仅暂停（PAUSED）状态的任务允许重置");
+    ErrorCode TASK_REJECT_FEEDBACK_REQUIRED = new ErrorCode(1_061_003_013, "打回反馈不能为空");
+    ErrorCode TASK_REJECT_FEEDBACK_INVALID = new ErrorCode(1_061_003_014, "打回反馈长度不能超过 2000 个字符");
 
 }

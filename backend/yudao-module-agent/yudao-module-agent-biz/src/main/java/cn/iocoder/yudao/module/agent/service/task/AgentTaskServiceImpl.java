@@ -32,6 +32,8 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUME
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUMENT_STATE_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOC_VERSION_CONFLICT;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_NOT_FOUND;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_REJECT_FEEDBACK_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_REJECT_FEEDBACK_REQUIRED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_TASK_NO_DUPLICATE;
@@ -221,11 +223,34 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         return doLifecycleTransition(id, AgentTaskAction.DELETE, null, idempotencyKey);
     }
 
+    @Override
+    public AgentTaskOperationRespVO accept(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.ACCEPT, null, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO reject(Long id, String feedback, String idempotencyKey) {
+        validateIdempotencyKey(idempotencyKey);
+        validateFeedback(feedback);
+        return doTransition(id, AgentTaskAction.REJECT, null, feedback, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO markMergeConflict(Long id, String idempotencyKey) {
+        return doLifecycleTransition(id, AgentTaskAction.MERGE_CONFLICT, null, idempotencyKey);
+    }
+
     /**
      * 生命周期动作统一入口：幂等重放、读取真实状态、交由状态机执行条件更新与审计。
      */
     private AgentTaskOperationRespVO doLifecycleTransition(Long id, AgentTaskAction action,
                                                            String reason, String idempotencyKey) {
+        return doTransition(id, action, reason, null, idempotencyKey);
+    }
+
+    private AgentTaskOperationRespVO doTransition(Long id, AgentTaskAction action,
+                                                  String cancelReason, String feedback,
+                                                  String idempotencyKey) {
         validateIdempotencyKey(idempotencyKey);
 
         // 1. 幂等键快速命中：同一任务 + 同一幂等键已执行过，直接返回第一次结果
@@ -249,7 +274,9 @@ public class AgentTaskServiceImpl implements AgentTaskService {
                 .taskNo(task.getTaskNo())
                 .action(action)
                 .fromStatus(AgentTaskStatus.valueOfCode(task.getStatus()))
-                .cancelReason(reason)
+                .cancelReason(cancelReason)
+                .feedback(feedback)
+                .docVersion(task.getDocVersion())
                 .requestIdempotencyKey(idempotencyKey)
                 .build();
         stateMachine.transition(command);
@@ -258,6 +285,15 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         AgentTaskDO updatedTask = taskMapper.selectById(id);
         AgentTaskOperationLogDO operationLog = operationLogMapper.selectByTaskIdAndRequestKey(id, idempotencyKey);
         return buildOperationResponse(updatedTask != null ? updatedTask : task, operationLog);
+    }
+
+    private void validateFeedback(String feedback) {
+        if (feedback == null || feedback.isBlank()) {
+            throw exception(TASK_REJECT_FEEDBACK_REQUIRED);
+        }
+        if (feedback.length() > 2000) {
+            throw exception(TASK_REJECT_FEEDBACK_INVALID);
+        }
     }
 
     private void validateIdempotencyKey(String idempotencyKey) {
