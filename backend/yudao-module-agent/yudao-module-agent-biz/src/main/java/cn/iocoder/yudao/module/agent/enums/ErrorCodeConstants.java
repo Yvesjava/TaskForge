@@ -87,4 +87,12 @@ public interface ErrorCodeConstants {
     ErrorCode MERGE_TASK_STATE_INVALID = new ErrorCode(1_061_004_000, "任务当前状态不允许合并：{}");
     ErrorCode MERGE_CLEANUP_REPOS_NOT_MERGED = new ErrorCode(1_061_004_001, "任务仍有仓库未合并完成，不能清理收尾");
 
+    // ========== 安全策略模块 1-061-005-000 ==========
+    ErrorCode SECURITY_TASK_NO_INVALID = new ErrorCode(1_061_005_000, "安全策略拒绝非法任务编号：{}");
+    ErrorCode SECURITY_PROJECT_CODE_INVALID = new ErrorCode(1_061_005_001, "安全策略拒绝非法项目代号：{}");
+    ErrorCode SECURITY_SUB_DIR_INVALID = new ErrorCode(1_061_005_002, "安全策略拒绝非法子目录映射：{}");
+    ErrorCode SECURITY_BRANCH_INVALID = new ErrorCode(1_061_005_003, "安全策略拒绝非法分支名：{}");
+    ErrorCode SECURITY_PATH_ESCAPE = new ErrorCode(1_061_005_004, "安全策略拒绝工作区路径越界：{}");
+    ErrorCode SECURITY_SYMLINK_NOT_ALLOWED = new ErrorCode(1_061_005_005, "安全策略拒绝符号链接路径：{}");
+
 }

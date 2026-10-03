@@ -11,6 +11,7 @@ import cn.iocoder.yudao.module.agent.framework.exec.CommandGateResult;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandStepResult;
 import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
 import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
+import cn.iocoder.yudao.module.agent.service.security.SecurityPolicy;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachine;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskTransitionCommand;
 import cn.iocoder.yudao.module.agent.service.workspace.CompositeWorkspace;
@@ -49,6 +50,8 @@ public class AgentTaskExecutor {
 
     private final CommandGate commandGate;
 
+    private final SecurityPolicy securityPolicy;
+
     private final AgentTaskStateMachine stateMachine;
 
     private final AgentObservability observability;
@@ -57,12 +60,14 @@ public class AgentTaskExecutor {
                              TaskBranchManager taskBranchManager,
                              CodexRetryRunner codexRunner,
                              CommandGate commandGate,
+                             SecurityPolicy securityPolicy,
                              AgentTaskStateMachine stateMachine,
                              AgentObservability observability) {
         this.worktreeManager = Objects.requireNonNull(worktreeManager, "worktreeManager 不能为空");
         this.taskBranchManager = Objects.requireNonNull(taskBranchManager, "taskBranchManager 不能为空");
         this.codexRunner = Objects.requireNonNull(codexRunner, "codexRunner 不能为空");
         this.commandGate = Objects.requireNonNull(commandGate, "commandGate 不能为空");
+        this.securityPolicy = Objects.requireNonNull(securityPolicy, "securityPolicy 不能为空");
         this.stateMachine = Objects.requireNonNull(stateMachine, "stateMachine 不能为空");
         this.observability = Objects.requireNonNull(observability, "observability 不能为空");
     }
@@ -87,13 +92,25 @@ public class AgentTaskExecutor {
             Throwable error = null;
 
             try {
-                workspace = worktreeManager.createCompositeWorkspace(
-                        request.getTaskNo(), request.getTargetBranch(), request.getTaskDoc(), request.getProjects());
+                securityPolicy.checkExecution(request.getTaskNo(), request.getTargetBranch(),
+                        request.getProjects(), request.getVerificationCommands());
             } catch (RuntimeException e) {
                 error = e;
-                log.error("[AgentTaskExecutor] 创建工作区失败 taskNo={}, workerId={}, generation={}, traceId={}",
+                log.error("[AgentTaskExecutor] 安全策略校验失败 taskNo={}, workerId={}, generation={}, traceId={}",
                         request.getTaskNo(), request.getWorkerId(), request.getGeneration(),
                         observability.traceId(), e);
+            }
+
+            if (error == null) {
+                try {
+                    workspace = worktreeManager.createCompositeWorkspace(
+                            request.getTaskNo(), request.getTargetBranch(), request.getTaskDoc(), request.getProjects());
+                } catch (RuntimeException e) {
+                    error = e;
+                    log.error("[AgentTaskExecutor] 创建工作区失败 taskNo={}, workerId={}, generation={}, traceId={}",
+                            request.getTaskNo(), request.getWorkerId(), request.getGeneration(),
+                            observability.traceId(), e);
+                }
             }
 
             if (workspace != null) {
