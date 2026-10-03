@@ -24,4 +24,9 @@ public class AgentWorkspaceProperties {
      */
     private String bareRepoRoot = "/data/agent-bare-repos";
 
+    /**
+     * 聚合工作区根目录（每个任务在下面生成独立的 dirA-{taskNo} 目录）
+     */
+    private String workspaceRoot = "/data/agent-workspace";
+
 }
