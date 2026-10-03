@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.agent.framework.webhook;
 
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
+import cn.iocoder.yudao.framework.common.util.monitor.TracerUtils;
 import cn.iocoder.yudao.module.agent.framework.notice.NoticeSecretRedactor;
 import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,19 +60,19 @@ public class JdkWebhookClient implements WebhookHttpClient {
                     .build();
             HttpResponse<String> response = httpClient.send(
                     httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            log.info("[WebhookClient] 投递完成 status={} target={}",
-                    response.statusCode(), redactedTarget(request.url()));
+            log.info("[WebhookClient] 投递完成 status={} target={} traceId={}",
+                    response.statusCode(), redactedTarget(request.url()), TracerUtils.getTraceId());
             return WebhookResponse.success(response.statusCode(), response.body());
         } catch (HttpTimeoutException e) {
-            log.warn("[WebhookClient] 投递超时 target={} timeout={}",
-                    redactedTarget(request.url()), timeout);
+            log.warn("[WebhookClient] 投递超时 target={} timeout={} traceId={}",
+                    redactedTarget(request.url()), timeout, TracerUtils.getTraceId());
             return WebhookResponse.timeout();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return WebhookResponse.failure(0, "", "投递被中断");
         } catch (Exception e) {
-            log.warn("[WebhookClient] 投递失败 target={} reason={}",
-                    redactedTarget(request.url()), reasonOf(e));
+            log.warn("[WebhookClient] 投递失败 target={} reason={} traceId={}",
+                    redactedTarget(request.url()), reasonOf(e), TracerUtils.getTraceId());
             return WebhookResponse.failure(0, "", reasonOf(e));
         }
     }

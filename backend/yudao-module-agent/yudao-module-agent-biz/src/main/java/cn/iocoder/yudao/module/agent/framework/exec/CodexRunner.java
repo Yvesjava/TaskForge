@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.framework.exec;
 
+import cn.iocoder.yudao.framework.common.util.monitor.TracerUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -86,8 +87,8 @@ public class CodexRunner {
             builder.redirectError(ProcessBuilder.Redirect.to(stderrFile.toFile()));
             process = builder.start();
             long pid = process.pid();
-            log.info("[CodexRunner] 启动子进程 pid={}, executable={}, argCount={}, timeout={}",
-                    pid, executable, arguments.size(), timeout);
+            log.info("[CodexRunner] 启动子进程 pid={}, executable={}, argCount={}, timeout={}, traceId={}",
+                    pid, executable, arguments.size(), timeout, TracerUtils.getTraceId());
 
             boolean finished;
             try {
@@ -101,7 +102,8 @@ public class CodexRunner {
             boolean timedOut = false;
             if (!finished) {
                 timedOut = true;
-                log.warn("[CodexRunner] 子进程超时 pid={}, executable={}，终止整个进程树", pid, executable);
+                log.warn("[CodexRunner] 子进程超时 pid={}, executable={}, traceId={}，终止整个进程树",
+                        pid, executable, TracerUtils.getTraceId());
                 destroyProcessGroup(process);
                 awaitTermination(process, pid);
             }
@@ -138,7 +140,7 @@ public class CodexRunner {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
-            log.warn("[CodexRunner] 等待进程终止被中断 pid={}", pid);
+            log.warn("[CodexRunner] 等待进程终止被中断 pid={}, traceId={}", pid, TracerUtils.getTraceId());
         }
     }
 

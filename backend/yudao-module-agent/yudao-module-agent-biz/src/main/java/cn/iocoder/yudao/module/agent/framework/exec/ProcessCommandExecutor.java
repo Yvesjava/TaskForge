@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.framework.exec;
 
+import cn.iocoder.yudao.framework.common.util.monitor.TracerUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -85,7 +86,8 @@ public class ProcessCommandExecutor implements CommandExecutor {
             boolean timedOut = false;
             if (!finished) {
                 timedOut = true;
-                log.warn("[CommandExecutor] 验收命令超时 executable={}, timeout={}", command.executable(), timeout);
+                log.warn("[CommandExecutor] 验收命令超时 executable={}, timeout={}, traceId={}",
+                        command.executable(), timeout, TracerUtils.getTraceId());
                 process.destroyForcibly();
                 try {
                     if (!process.waitFor(TERMINATION_GRACE_SECONDS, TimeUnit.SECONDS)) {
@@ -102,8 +104,8 @@ public class ProcessCommandExecutor implements CommandExecutor {
             long duration = System.currentTimeMillis() - started;
             String output = readBounded(outputFile);
             if (exitCode != 0) {
-                log.warn("[CommandExecutor] 验收命令非零退出 executable={}, exitCode={}, durationMs={}",
-                        command.executable(), exitCode, duration);
+                log.warn("[CommandExecutor] 验收命令非零退出 executable={}, exitCode={}, durationMs={}, traceId={}",
+                        command.executable(), exitCode, duration, TracerUtils.getTraceId());
             }
             return new CommandStepResult(command.executable(), command.arguments(),
                     exitCode, output, timedOut, duration);

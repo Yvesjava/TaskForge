@@ -9,12 +9,14 @@ import cn.iocoder.yudao.module.agent.framework.exec.CodexRetryRunner;
 import cn.iocoder.yudao.module.agent.framework.exec.CodexRunner;
 import cn.iocoder.yudao.module.agent.framework.exec.CodexRunnerTestHelper;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGate;
+import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
 import cn.iocoder.yudao.module.agent.service.security.SecurityPolicy;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachineImpl;
 import cn.iocoder.yudao.module.agent.service.workspace.CompositeWorkspace;
 import cn.iocoder.yudao.module.agent.service.workspace.TaskBranchManager;
 import cn.iocoder.yudao.module.agent.service.workspace.WorktreeManager;
 import cn.iocoder.yudao.module.agent.service.workspace.WorkspaceProject;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -95,7 +97,8 @@ class AgentTaskTimeoutTest {
         ReflectionTestUtils.setField(stateMachine, "operationLogMapper", operationLogMapper);
 
         AgentTaskExecutor executor = new AgentTaskExecutor(
-                worktreeManager, taskBranchManager, retryRunner, commandGate, securityPolicy, stateMachine);
+                worktreeManager, taskBranchManager, retryRunner, commandGate, securityPolicy, stateMachine,
+                new AgentObservability(new SimpleMeterRegistry()));
 
         CompositeWorkspace workspace = CompositeWorkspace.builder()
                 .taskNo(TASK_NO)

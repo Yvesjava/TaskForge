@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.agent.framework.webhook;
 
 import cn.iocoder.yudao.module.agent.framework.notice.NoticeBranchRef;
 import cn.iocoder.yudao.module.agent.framework.notice.NoticeCard;
+import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
 import javax.crypto.Mac;
@@ -244,7 +246,7 @@ class WebhookAdapterTest {
     }
 
     private WebhookSender sender(WebhookProperties properties, WebhookHttpClient client) {
-        return new WebhookSender(client, properties);
+        return new WebhookSender(client, properties, new AgentObservability(new SimpleMeterRegistry()));
     }
 
     private WebhookHttpClient fixedClient(WebhookResponse response) {
