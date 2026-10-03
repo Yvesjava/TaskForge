@@ -21,6 +21,14 @@ public interface RedisKeyConstants {
     String TASK_HEARTBEAT = "agent:task:heartbeat:";
 
     /**
+     * 任务取消信号 String 键前缀，完整键为 {@code agent:task:cancel:{taskId}}
+     *
+     * <p>值为触发取消的执行代次，Worker 轮询后发现自身代次不高于信号代次即停止
+     * 提交、推送与结果写回。取消信号由控制面在任务取消或失租恢复时写入。</p>
+     */
+    String TASK_CANCEL = "agent:task:cancel:";
+
+    /**
      * 租约 Hash 中持有者字段名
      */
     String LEASE_FIELD_WORKER_ID = "workerId";

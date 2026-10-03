@@ -57,7 +57,10 @@ class AgentTaskLeaseTest {
         properties.setLeaseMinutes(5);
         properties.setLeaseBufferSeconds(60);
         properties.setHeartbeatTtlSeconds(90);
-        leaseService = new AgentTaskLeaseServiceImpl(stringRedisTemplate, properties);
+        properties.setCancelTtlSeconds(300);
+        AgentTaskCancelSignalServiceImpl cancelSignalService =
+                new AgentTaskCancelSignalServiceImpl(stringRedisTemplate, properties);
+        leaseService = new AgentTaskLeaseServiceImpl(stringRedisTemplate, properties, cancelSignalService);
     }
 
     @AfterAll

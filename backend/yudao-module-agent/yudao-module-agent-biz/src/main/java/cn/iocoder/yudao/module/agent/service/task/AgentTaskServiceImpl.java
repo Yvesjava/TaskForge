@@ -16,6 +16,7 @@ import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentParser;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentSectionValidator;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentValidator;
 import cn.iocoder.yudao.module.agent.service.doc.TaskFrontMatter;
+import cn.iocoder.yudao.module.agent.service.scheduler.AgentTaskCancelSignalService;
 import jakarta.annotation.Resource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -75,6 +76,9 @@ public class AgentTaskServiceImpl implements AgentTaskService {
 
     @Resource
     private AgentTaskStateMachine stateMachine;
+
+    @Resource
+    private AgentTaskCancelSignalService cancelSignalService;
 
     @Override
     public AgentTaskSubmitRespVO submit(String document, String idempotencyKey) {
@@ -210,7 +214,14 @@ public class AgentTaskServiceImpl implements AgentTaskService {
 
     @Override
     public AgentTaskOperationRespVO cancel(Long id, String cancelReason, String idempotencyKey) {
-        return doLifecycleTransition(id, AgentTaskAction.CANCEL, cancelReason, idempotencyKey);
+        AgentTaskOperationRespVO response =
+                doLifecycleTransition(id, AgentTaskAction.CANCEL, cancelReason, idempotencyKey);
+        // 状态转换提交后广播取消信号，通知仍持有旧代次的 Worker 立即停止写入
+        AgentTaskDO task = taskMapper.selectById(id);
+        if (task != null && task.getExecutionGeneration() != null) {
+            cancelSignalService.publish(id, task.getExecutionGeneration());
+        }
+        return response;
     }
 
     @Override

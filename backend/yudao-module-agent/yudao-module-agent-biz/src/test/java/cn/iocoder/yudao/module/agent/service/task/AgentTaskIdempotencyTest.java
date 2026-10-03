@@ -16,6 +16,7 @@ import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentParser;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentSectionValidator;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocumentValidator;
 import cn.iocoder.yudao.module.agent.service.doc.TaskFrontMatter;
+import cn.iocoder.yudao.module.agent.service.scheduler.AgentTaskCancelSignalService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -66,6 +67,9 @@ class AgentTaskIdempotencyTest {
 
     @Mock
     private AgentTaskStateMachine stateMachine;
+
+    @Mock
+    private AgentTaskCancelSignalService cancelSignalService;
 
     @InjectMocks
     private AgentTaskServiceImpl taskService;
