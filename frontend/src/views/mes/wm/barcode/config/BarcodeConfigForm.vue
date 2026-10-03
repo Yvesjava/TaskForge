@@ -86,6 +86,7 @@ import {
   WmBarcodeConfigApi as BarcodeConfigApi,
   WmBarcodeConfigVO as BarcodeConfigVO
 } from '@/api/mes/wm/barcode/config'
+import { ElMessage } from 'element-plus'
 
 defineOptions({ name: 'BarcodeConfigForm' })
 

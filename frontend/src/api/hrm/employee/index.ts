@@ -228,7 +228,7 @@ export const getEmployeeSimpleList = async (ids: number[]) => {
 }
 
 // 查询员工状态数量
-export const getEmployeeStatusCount = async (params: PageParam) => {
+export const getEmployeeStatusCount = async (params: PageParam & { surveyType?: number }) => {
   return await request.get<HrmEmployeeStatusCountVO[]>({
     url: '/hrm/employee/status-count',
     params

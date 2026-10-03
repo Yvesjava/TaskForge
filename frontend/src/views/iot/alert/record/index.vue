@@ -194,6 +194,7 @@ import { AlertConfigApi, AlertConfig } from '@/api/iot/alert/config'
 import { ProductApi, ProductVO } from '@/api/iot/product/product'
 import { DeviceApi, DeviceVO } from '@/api/iot/device/device'
 import { DICT_TYPE, getIntDictOptions, getBoolDictOptions } from '@/utils/dict'
+import { ElMessageBox } from 'element-plus'
 
 /** IoT 告警记录列表 */
 defineOptions({ name: 'IotAlertRecord' })

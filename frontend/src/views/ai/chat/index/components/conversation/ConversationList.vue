@@ -138,6 +138,7 @@ import { ChatConversationApi, ChatConversationVO } from '@/api/ai/chat/conversat
 import RoleRepository from '../role/RoleRepository.vue'
 import { Bottom, Top } from '@element-plus/icons-vue'
 import roleAvatarDefaultImg from '@/assets/ai/gpt.svg'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const message = useMessage() // 消息弹窗
 
