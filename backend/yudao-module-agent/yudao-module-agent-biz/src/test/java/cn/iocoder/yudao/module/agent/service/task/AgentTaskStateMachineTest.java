@@ -75,6 +75,8 @@ class AgentTaskStateMachineTest {
         assertLegal(AgentTaskStatus.ACCEPTED, AgentTaskAction.MERGE_PASS, AgentTaskStatus.COMPLETED);
         assertLegal(AgentTaskStatus.ACCEPTED, AgentTaskAction.MERGE_CONFLICT,
                 AgentTaskStatus.MERGE_CONFLICT_PENDING_MANUAL);
+        assertLegal(AgentTaskStatus.MERGE_CONFLICT_PENDING_MANUAL, AgentTaskAction.MERGE_RETRY,
+                AgentTaskStatus.ACCEPTED);
 
         assertLegal(AgentTaskStatus.REJECTED, AgentTaskAction.RE_ENQUEUE, AgentTaskStatus.PENDING);
         assertLegal(AgentTaskStatus.FAILED, AgentTaskAction.RE_ENQUEUE, AgentTaskStatus.PENDING);

@@ -29,6 +29,7 @@ public enum AgentTaskAction {
     REJECT("REJECT", "打回"),
     MERGE_PASS("MERGE_PASS", "合并成功"),
     MERGE_CONFLICT("MERGE_CONFLICT", "合并冲突"),
+    MERGE_RETRY("MERGE_RETRY", "重试合并"),
     DELETE("DELETE", "软删除"),
     CLEANUP_PASS("CLEANUP_PASS", "重置清理完成"),
     EDIT("EDIT", "编辑任务文档");

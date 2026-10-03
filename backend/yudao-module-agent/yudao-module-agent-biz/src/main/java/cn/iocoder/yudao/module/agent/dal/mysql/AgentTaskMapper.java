@@ -167,6 +167,11 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
     int markMergeConflictIfAccepted(@Param("id") Long id);
 
     /**
+     * 重试合并：MERGE_CONFLICT_PENDING_MANUAL -> ACCEPTED，恢复合并可执行状态
+     */
+    int recoverMergeIfPendingManual(@Param("id") Long id);
+
+    /**
      * 重新入队：REJECTED/FAILED/CANCELED -> PENDING，生成新的执行代次
      */
     int reEnqueueIfEnded(@Param("id") Long id);

@@ -16,6 +16,8 @@ public record MergeRepoResult(String repoKey, boolean merged, String mergeStatus
 
     public static final String MERGE_STATUS_MERGED = "MERGED";
     public static final String MERGE_STATUS_FAILED = "FAILED";
+    public static final String MERGE_STATUS_CONFLICT = "CONFLICT";
+    public static final String MERGE_STATUS_UNMERGED = "UNMERGED";
 
     public MergeRepoResult {
         if (repoKey == null || repoKey.isBlank()) {
@@ -33,6 +35,14 @@ public record MergeRepoResult(String repoKey, boolean merged, String mergeStatus
 
     public static MergeRepoResult failed(String repoKey, String mergeStatus, String webUrl, String message) {
         return new MergeRepoResult(repoKey, false, mergeStatus, "", webUrl, message);
+    }
+
+    public static MergeRepoResult conflict(String repoKey, String webUrl, String message) {
+        return new MergeRepoResult(repoKey, false, MERGE_STATUS_CONFLICT, "", webUrl, message);
+    }
+
+    public static MergeRepoResult unmerged(String repoKey) {
+        return new MergeRepoResult(repoKey, false, MERGE_STATUS_UNMERGED, "", "", "");
     }
 
 }
