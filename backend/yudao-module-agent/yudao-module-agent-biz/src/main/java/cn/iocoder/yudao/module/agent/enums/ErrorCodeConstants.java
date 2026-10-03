@@ -54,5 +54,10 @@ public interface ErrorCodeConstants {
     ErrorCode DOCUMENT_REPO_MODE_MISSING = new ErrorCode(1_061_002_009, "任务文档缺少仓库配置（单仓 repoUrl/baseBranch 或多仓 projects）");
     ErrorCode DOCUMENT_TARGET_BRANCH_INVALID = new ErrorCode(1_061_002_010, "任务文档目标分支无效：{}");
     ErrorCode DOCUMENT_BASE_BRANCH_INVALID = new ErrorCode(1_061_002_011, "任务文档基线分支无效：{}");
+    ErrorCode DOCUMENT_SECTION_MISSING = new ErrorCode(1_061_002_012, "任务文档缺少正文小节：{}");
+    ErrorCode DOCUMENT_SECTION_EMPTY = new ErrorCode(1_061_002_013, "任务文档正文小节内容为空：{}");
+    ErrorCode DOCUMENT_SECTION_NOT_CHECKLIST = new ErrorCode(1_061_002_014, "任务文档正文小节 {} 必须包含可勾选清单");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_FOUND = new ErrorCode(1_061_002_015, "任务文档正文小节 {} 缺少验收步骤列表");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_EXECUTABLE = new ErrorCode(1_061_002_016, "任务文档正文小节 {} 的验收步骤必须为可执行命令或明确检查项");
 
 }
