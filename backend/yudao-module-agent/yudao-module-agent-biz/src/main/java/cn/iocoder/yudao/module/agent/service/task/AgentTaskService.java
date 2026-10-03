@@ -1,9 +1,12 @@
 package cn.iocoder.yudao.module.agent.service.task;
 
+import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
+import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
 
 /**
  * 任务控制面 Service
@@ -20,6 +23,22 @@ public interface AgentTaskService {
      * @return 任务编号、状态与文档版本
      */
     AgentTaskSubmitRespVO submit(String document, String idempotencyKey);
+
+    /**
+     * 获得任务详情。
+     *
+     * @param id 任务 ID
+     * @return 任务信息，不存在时返回 null
+     */
+    AgentTaskDO getTask(Long id);
+
+    /**
+     * 获得任务分页列表，支持按任务编号、标题、状态、优先级等过滤。
+     *
+     * @param pageReqVO 分页条件
+     * @return 任务分页列表
+     */
+    PageResult<AgentTaskDO> getTaskPage(AgentTaskPageReqVO pageReqVO);
 
     /**
      * 编辑暂停任务的文档与执行参数。
