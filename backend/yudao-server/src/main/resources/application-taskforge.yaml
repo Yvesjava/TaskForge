@@ -40,3 +40,7 @@ yudao:
   web:
     admin-ui:
       url: ${TASKFORGE_FRONTEND_URL:http://localhost:3000}
+  agent:
+    workspace:
+      # 宿主机 Git 裸仓库缓存根目录，供 WorktreeManager 复用
+      bare-repo-root: ${TASKFORGE_AGENT_BARE_REPO_ROOT:/data/agent-bare-repos}
