@@ -23,6 +23,13 @@ public interface ErrorCodeConstants {
     ErrorCode BARE_REPO_BRANCH_INVALID = new ErrorCode(1_061_001_001, "Bare Repo 分支无效，项目 {}：{}");
     ErrorCode BARE_REPO_INIT_FAILED = new ErrorCode(1_061_001_002, "Bare Repo 缓存初始化失败，项目 {}：{}");
     ErrorCode BARE_REPO_FETCH_FAILED = new ErrorCode(1_061_001_003, "Bare Repo 拉取失败，项目 {}，分支 {}：{}");
+    ErrorCode BRANCH_TASK_NO_INVALID = new ErrorCode(1_061_001_004, "任务编号无效，无法生成特性分支：{}");
+    ErrorCode BRANCH_NAME_INVALID = new ErrorCode(1_061_001_005, "项目 {} 的分支名无效：{}");
+    ErrorCode BRANCH_BASELINE_NOT_FOUND = new ErrorCode(1_061_001_006, "基线分支不存在，项目 {}：{}");
+    ErrorCode BRANCH_BASELINE_CHECK_FAILED = new ErrorCode(1_061_001_007, "基线分支检查失败，项目 {}，分支 {}：{}");
+    ErrorCode BRANCH_CREATE_FAILED = new ErrorCode(1_061_001_008, "特性分支创建失败，项目 {}，分支 {}：{}");
+    ErrorCode BRANCH_PUSH_FAILED = new ErrorCode(1_061_001_009, "特性分支推送失败，项目 {}，分支 {}：{}");
+    ErrorCode BRANCH_DELETE_FAILED = new ErrorCode(1_061_001_010, "特性分支删除失败，项目 {}，分支 {}：{}");
 
     // ========== 任务文档模块 1-061-002-000 ==========
     ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");

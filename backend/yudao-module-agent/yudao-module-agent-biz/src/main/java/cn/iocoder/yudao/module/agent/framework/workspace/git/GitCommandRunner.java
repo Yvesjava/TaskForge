@@ -41,6 +41,31 @@ public class GitCommandRunner {
      * @throws GitCommandException 命令启动失败、超时或非零退出码时抛出
      */
     public String run(Path workingDirectory, List<String> args) {
+        GitCommandResult result = execute(workingDirectory, args);
+        if (result.exitCode() != 0) {
+            throw new GitCommandException("git 命令执行失败", result.exitCode(), result.output());
+        }
+        return result.output();
+    }
+
+    /**
+     * 执行 Git 命令但不在非零退出码时抛异常，便于调用方按退出码分支处理。
+     *
+     * <p>进程启动失败、超时、被中断等无法正常收集退出码的情况仍会抛出
+     * {@link GitCommandException}。
+     *
+     * @param workingDirectory 子进程工作目录
+     * @param args             Git 参数（不含 git 可执行文件名）
+     * @return 原始退出码与截断后的输出
+     */
+    public GitCommandResult runAllowFailure(Path workingDirectory, List<String> args) {
+        return execute(workingDirectory, args);
+    }
+
+    /**
+     * 执行 Git 命令并返回退出码与输出，统一处理输出重定向与超时。
+     */
+    private GitCommandResult execute(Path workingDirectory, List<String> args) {
         List<String> command = new ArrayList<>();
         command.add("git");
         command.addAll(args);
@@ -70,10 +95,7 @@ public class GitCommandRunner {
 
             int exitCode = process.exitValue();
             String output = readBounded(outputFile);
-            if (exitCode != 0) {
-                throw new GitCommandException("git 命令执行失败", exitCode, output);
-            }
-            return output;
+            return new GitCommandResult(exitCode, output);
         } catch (IOException e) {
             throw new GitCommandException("无法执行 git 命令：" + e.getMessage(), -1, "");
         } finally {
