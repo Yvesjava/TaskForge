@@ -147,6 +147,7 @@ import {
   canEditKnowledgeContent,
   canManageKnowledgeContent
 } from '@/views/pms/kb/utils/permission'
+import { ElTree } from 'element-plus'
 
 defineOptions({ name: 'PmsKnowledgeLibrarySidebar' })
 

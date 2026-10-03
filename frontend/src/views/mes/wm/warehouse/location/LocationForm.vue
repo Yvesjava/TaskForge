@@ -116,6 +116,7 @@ import { WmWarehouseLocationApi, WmWarehouseLocationVO } from '@/api/mes/wm/ware
 import { AutoCodeRecordApi } from '@/api/mes/md/autocode/record'
 import { MesAutoCodeRuleCode, BarcodeBizTypeEnum } from '@/views/mes/utils/constants'
 import { BarcodeDetail } from '@/views/mes/wm/barcode/components'
+import { ElMessageBox } from 'element-plus'
 
 defineOptions({ name: 'LocationForm' })
 

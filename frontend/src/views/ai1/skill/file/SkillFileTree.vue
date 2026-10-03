@@ -72,6 +72,7 @@
 </template>
 <script setup lang="ts">
 import type { AllowDropFunction, AllowDropType, NodeDropType, TreeInstance } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { checkPermi } from '@/utils/permission'
 import { DICT_TYPE, getDictLabel } from '@/utils/dict'
 import { handleTree } from '@/utils/tree'
