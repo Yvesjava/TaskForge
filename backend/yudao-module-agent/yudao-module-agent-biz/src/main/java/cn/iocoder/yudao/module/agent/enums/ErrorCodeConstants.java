@@ -24,4 +24,13 @@ public interface ErrorCodeConstants {
     ErrorCode BARE_REPO_INIT_FAILED = new ErrorCode(1_061_001_002, "Bare Repo 缓存初始化失败，项目 {}：{}");
     ErrorCode BARE_REPO_FETCH_FAILED = new ErrorCode(1_061_001_003, "Bare Repo 拉取失败，项目 {}，分支 {}：{}");
 
+    // ========== 任务文档模块 1-061-002-000 ==========
+    ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_FOUND = new ErrorCode(1_061_002_001, "任务文档缺少 YAML Front Matter（--- 起始块）");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_CLOSED = new ErrorCode(1_061_002_002, "任务文档 Front Matter 缺少结束分隔符 ---");
+    ErrorCode DOCUMENT_FRONT_MATTER_EMPTY = new ErrorCode(1_061_002_003, "任务文档 Front Matter 内容不能为空");
+    ErrorCode DOCUMENT_FRONT_MATTER_INVALID = new ErrorCode(1_061_002_004, "任务文档 Front Matter 解析失败：{}");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_MAPPING = new ErrorCode(1_061_002_005, "任务文档 Front Matter 顶层必须是键值对映射");
+    ErrorCode DOCUMENT_FIELD_TYPE_ERROR = new ErrorCode(1_061_002_006, "任务文档字段 {}（第 {} 行第 {} 列）{}");
+
 }
