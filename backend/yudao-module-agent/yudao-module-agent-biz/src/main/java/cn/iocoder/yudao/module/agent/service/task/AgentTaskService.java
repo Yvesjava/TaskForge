@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.service.task;
 
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
@@ -33,5 +34,51 @@ public interface AgentTaskService {
                                                  AgentTaskUpdateDocumentReqVO reqVO,
                                                  String idempotencyKey,
                                                  String ifMatch);
+
+    /**
+     * 暂停排队中的任务。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO pause(Long id, String idempotencyKey);
+
+    /**
+     * 恢复暂停任务到待调度队列。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO resume(Long id, String idempotencyKey);
+
+    /**
+     * 取消排队中或已暂停的任务。
+     *
+     * @param id             任务 ID
+     * @param cancelReason   取消原因
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO cancel(Long id, String cancelReason, String idempotencyKey);
+
+    /**
+     * 将已取消、已打回或执行失败的任务重新入队。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO reEnqueue(Long id, String idempotencyKey);
+
+    /**
+     * 软删除已取消的任务。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO deleteTask(Long id, String idempotencyKey);
 
 }
