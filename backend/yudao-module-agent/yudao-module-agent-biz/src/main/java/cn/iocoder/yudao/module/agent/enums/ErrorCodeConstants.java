@@ -78,5 +78,6 @@ public interface ErrorCodeConstants {
     ErrorCode TASK_STATUS_TRANSITION_NOT_ALLOWED = new ErrorCode(1_061_003_009, "任务状态不允许执行该转换：当前状态 {}，动作 {}");
     ErrorCode TASK_STATUS_TRANSITION_TARGET_REQUIRED = new ErrorCode(1_061_003_010, "动作 {} 存在多个目标状态，必须显式指定目标状态");
     ErrorCode TASK_STATUS_UPDATE_CONFLICT = new ErrorCode(1_061_003_011, "任务 {} 状态已变化，条件更新失败：当前状态 {}，动作 {}");
+    ErrorCode TASK_CANNOT_RESET_NOT_PAUSED = new ErrorCode(1_061_003_012, "仅暂停（PAUSED）状态的任务允许重置");
 
 }
