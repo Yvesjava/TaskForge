@@ -293,6 +293,92 @@ class TaskDocumentValidationTest {
                 });
     }
 
+    @Test
+    void validate_nullDocument_throwsRequiredFrontMatter() {
+        assertThatThrownBy(() -> validator.validate((TaskDocument) null))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_REQUIRED.getCode());
+                    assertThat(ex.getMessage()).contains("frontMatter");
+                });
+
+        assertThatThrownBy(() -> validator.validate(TaskDocument.builder().frontMatter(null).body("").build()))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_REQUIRED.getCode());
+                    assertThat(ex.getMessage()).contains("frontMatter");
+                });
+    }
+
+    @Test
+    void validate_missingTaskId_throws() {
+        String markdown = """
+                ---
+                title: "会员充值优惠券抵扣全栈支持"
+                targetBranch: "feature/TASK-20261001-088"
+                timeoutMinutes: 30
+                repoUrl: "git@github.com:Yvesjava/TaskForge.git"
+                baseBranch: "main"
+                ---
+                """;
+
+        assertThatThrownBy(() -> validator.validate(parser.parse(markdown)))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_REQUIRED.getCode());
+                    assertThat(ex.getMessage()).contains("taskId");
+                });
+    }
+
+    @Test
+    void validate_multiRepoMissingProjectCode_throws() {
+        String markdown = """
+                ---
+                taskId: "TASK-20261001-088"
+                title: "会员充值优惠券抵扣全栈支持"
+                targetBranch: "feature/TASK-20261001-088"
+                timeoutMinutes: 30
+                projects:
+                  - baseBranch: "main"
+                    subDir: "backend"
+                ---
+                """;
+
+        assertThatThrownBy(() -> validator.validate(parser.parse(markdown)))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_REQUIRED.getCode());
+                    assertThat(ex.getMessage()).contains("projects[0].code");
+                });
+    }
+
+    @Test
+    void validate_multiRepoMissingProjectBaseBranch_throws() {
+        String markdown = """
+                ---
+                taskId: "TASK-20261001-088"
+                title: "会员充值优惠券抵扣全栈支持"
+                targetBranch: "feature/TASK-20261001-088"
+                timeoutMinutes: 30
+                projects:
+                  - code: "backend-service"
+                    subDir: "backend"
+                ---
+                """;
+
+        assertThatThrownBy(() -> validator.validate(parser.parse(markdown)))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    assertThat(((ServiceException) ex).getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_REQUIRED.getCode());
+                    assertThat(ex.getMessage()).contains("projects[0].baseBranch");
+                });
+    }
+
     private static AgentProjectDO enabledProject(Long id, String projectCode) {
         return AgentProjectDO.builder()
                 .id(id)

@@ -212,6 +212,131 @@ class AgentTaskStateMachineTest {
     }
 
     @Test
+    void transition_resumeDelegatesToResumeIfPaused() {
+        when(taskMapper.resumeIfPaused(TASK_ID)).thenReturn(1);
+
+        AgentTaskStatus result = stateMachine.transition(command(AgentTaskStatus.PAUSED, AgentTaskAction.RESUME));
+
+        assertThat(result).isEqualTo(AgentTaskStatus.PENDING);
+        verify(taskMapper).resumeIfPaused(TASK_ID);
+        assertAudit(AgentTaskAction.RESUME, "PAUSED", "PENDING");
+    }
+
+    @Test
+    void transition_cancelDelegatesToCancelWithReason() {
+        when(taskMapper.cancelIfPendingOrPaused(TASK_ID, "需求变更")).thenReturn(1);
+
+        AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
+                .taskId(TASK_ID)
+                .action(AgentTaskAction.CANCEL)
+                .fromStatus(AgentTaskStatus.PENDING)
+                .cancelReason("需求变更")
+                .build();
+
+        AgentTaskStatus result = stateMachine.transition(command);
+
+        assertThat(result).isEqualTo(AgentTaskStatus.CANCELED);
+        verify(taskMapper).cancelIfPendingOrPaused(TASK_ID, "需求变更");
+        assertAudit(AgentTaskAction.CANCEL, "PENDING", "CANCELED");
+    }
+
+    @Test
+    void transition_resetDelegatesToMarkResetting() {
+        when(taskMapper.markResettingIfPaused(TASK_ID)).thenReturn(1);
+
+        AgentTaskStatus result = stateMachine.transition(command(AgentTaskStatus.PAUSED, AgentTaskAction.RESET));
+
+        assertThat(result).isEqualTo(AgentTaskStatus.RESETTING);
+        verify(taskMapper).markResettingIfPaused(TASK_ID);
+        assertAudit(AgentTaskAction.RESET, "PAUSED", "RESETTING");
+    }
+
+    @Test
+    void transition_timeoutDelegatesToMarkFailed() {
+        when(taskMapper.markFailedIfRunning(TASK_ID, "worker-1", 3L, "timeout-log", 1, 5000L, null)).thenReturn(1);
+
+        AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
+                .taskId(TASK_ID)
+                .action(AgentTaskAction.TIMEOUT)
+                .fromStatus(AgentTaskStatus.RUNNING)
+                .workerId("worker-1")
+                .generation(3L)
+                .executionLog("timeout-log")
+                .retryTimes(1)
+                .costMs(5000L)
+                .build();
+
+        AgentTaskStatus result = stateMachine.transition(command);
+
+        assertThat(result).isEqualTo(AgentTaskStatus.FAILED);
+        verify(taskMapper).markFailedIfRunning(TASK_ID, "worker-1", 3L, "timeout-log", 1, 5000L, null);
+        assertAudit(AgentTaskAction.TIMEOUT, "RUNNING", "FAILED");
+    }
+
+    @Test
+    void transition_errorDelegatesToMarkFailed() {
+        when(taskMapper.markFailedIfRunning(TASK_ID, "worker-1", 2L, "boom", 2, 3000L, null)).thenReturn(1);
+
+        AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
+                .taskId(TASK_ID)
+                .action(AgentTaskAction.ERROR)
+                .fromStatus(AgentTaskStatus.RUNNING)
+                .workerId("worker-1")
+                .generation(2L)
+                .executionLog("boom")
+                .retryTimes(2)
+                .costMs(3000L)
+                .build();
+
+        AgentTaskStatus result = stateMachine.transition(command);
+
+        assertThat(result).isEqualTo(AgentTaskStatus.FAILED);
+        verify(taskMapper).markFailedIfRunning(TASK_ID, "worker-1", 2L, "boom", 2, 3000L, null);
+        assertAudit(AgentTaskAction.ERROR, "RUNNING", "FAILED");
+    }
+
+    @Test
+    void transition_heartbeatExpiredDelegatesToMarkLeaseExpiredFailed() {
+        when(taskMapper.markLeaseExpiredFailed(TASK_ID, 4L)).thenReturn(1);
+
+        AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
+                .taskId(TASK_ID)
+                .action(AgentTaskAction.HEARTBEAT_EXPIRED)
+                .fromStatus(AgentTaskStatus.RUNNING)
+                .generation(4L)
+                .build();
+
+        AgentTaskStatus result = stateMachine.transition(command);
+
+        assertThat(result).isEqualTo(AgentTaskStatus.FAILED);
+        verify(taskMapper).markLeaseExpiredFailed(TASK_ID, 4L);
+        assertAudit(AgentTaskAction.HEARTBEAT_EXPIRED, "RUNNING", "FAILED");
+    }
+
+    @Test
+    void transition_mergePassDelegatesToCompleteIfAccepted() {
+        when(taskMapper.completeIfAccepted(TASK_ID)).thenReturn(1);
+
+        AgentTaskStatus result = stateMachine.transition(command(AgentTaskStatus.ACCEPTED, AgentTaskAction.MERGE_PASS));
+
+        assertThat(result).isEqualTo(AgentTaskStatus.COMPLETED);
+        verify(taskMapper).completeIfAccepted(TASK_ID);
+        assertAudit(AgentTaskAction.MERGE_PASS, "ACCEPTED", "COMPLETED");
+    }
+
+    @Test
+    void transition_mergeRetryDelegatesToRecoverMergeIfPendingManual() {
+        when(taskMapper.recoverMergeIfPendingManual(TASK_ID)).thenReturn(1);
+
+        AgentTaskStatus result = stateMachine.transition(command(
+                AgentTaskStatus.MERGE_CONFLICT_PENDING_MANUAL, AgentTaskAction.MERGE_RETRY));
+
+        assertThat(result).isEqualTo(AgentTaskStatus.ACCEPTED);
+        verify(taskMapper).recoverMergeIfPendingManual(TASK_ID);
+        assertAudit(AgentTaskAction.MERGE_RETRY, "MERGE_CONFLICT_PENDING_MANUAL", "ACCEPTED");
+    }
+
+    @Test
     void transition_unlistedFromStatusThrowsConflictWithoutTouchingPersistence() {
         assertThatThrownBy(() -> stateMachine.transition(command(AgentTaskStatus.COMPLETED, AgentTaskAction.PAUSE)))
                 .isInstanceOf(ServiceException.class)

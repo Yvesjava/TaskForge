@@ -235,4 +235,118 @@ class TaskDocumentParserTest {
         assertThat(frontMatter.getDependsOnTaskId()).isNull();
     }
 
+    @Test
+    void parse_nullOrBlankDocument_throwsDocumentEmpty() {
+        assertThatThrownBy(() -> parser.parse(null))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.DOCUMENT_EMPTY.getCode()));
+        assertThatThrownBy(() -> parser.parse("   \n  "))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.DOCUMENT_EMPTY.getCode()));
+    }
+
+    @Test
+    void parse_leadingBom_isStrippedBeforeParsing() {
+        String markdown = "\uFEFF---\n"
+                + "taskId: \"TASK-1\"\n"
+                + "title: \"带 BOM 的文档\"\n"
+                + "targetBranch: \"feature/x\"\n"
+                + "timeoutMinutes: 30\n"
+                + "repoUrl: \"git@github.com:Yvesjava/TaskForge.git\"\n"
+                + "baseBranch: \"main\"\n"
+                + "---\n";
+
+        TaskFrontMatter frontMatter = parser.parse(markdown).getFrontMatter();
+
+        assertThat(frontMatter.getTaskId()).isEqualTo("TASK-1");
+        assertThat(frontMatter.getTitle()).isEqualTo("带 BOM 的文档");
+    }
+
+    @Test
+    void parse_underscoreInIntLiteral_isConvertedToInteger() {
+        String markdown = """
+                ---
+                taskId: "TASK-1"
+                title: "t"
+                targetBranch: "feature/x"
+                timeoutMinutes: 1_000
+                repoUrl: "git@github.com:Yvesjava/TaskForge.git"
+                baseBranch: "main"
+                ---
+                """;
+
+        TaskFrontMatter frontMatter = parser.parse(markdown).getFrontMatter();
+
+        assertThat(frontMatter.getTimeoutMinutes()).isEqualTo(1000);
+    }
+
+    @Test
+    void parse_projectsNotSequence_throwsTypeError() {
+        String markdown = """
+                ---
+                taskId: "TASK-1"
+                title: "t"
+                targetBranch: "feature/x"
+                timeoutMinutes: 45
+                projects: "backend-service"
+                ---
+                """;
+
+        assertThatThrownBy(() -> parser.parse(markdown))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    ServiceException serviceException = (ServiceException) ex;
+                    assertThat(serviceException.getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_TYPE_ERROR.getCode());
+                    assertThat(serviceException.getMessage()).contains("projects", "应为项目列表");
+                });
+    }
+
+    @Test
+    void parse_projectItemNotMapping_throwsTypeError() {
+        String markdown = """
+                ---
+                taskId: "TASK-1"
+                title: "t"
+                targetBranch: "feature/x"
+                timeoutMinutes: 45
+                projects:
+                  - 123
+                ---
+                """;
+
+        assertThatThrownBy(() -> parser.parse(markdown))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    ServiceException serviceException = (ServiceException) ex;
+                    assertThat(serviceException.getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_TYPE_ERROR.getCode());
+                    assertThat(serviceException.getMessage()).contains("projects[0]", "应为键值对映射");
+                });
+    }
+
+    @Test
+    void parse_wrongTypeDependsOnTaskId_throwsWithFieldLocation() {
+        String markdown = """
+                ---
+                taskId: "TASK-1"
+                title: "t"
+                targetBranch: "feature/x"
+                timeoutMinutes: 45
+                dependsOnTaskId: "not-a-number"
+                ---
+                """;
+
+        assertThatThrownBy(() -> parser.parse(markdown))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> {
+                    ServiceException serviceException = (ServiceException) ex;
+                    assertThat(serviceException.getCode())
+                            .isEqualTo(ErrorCodeConstants.DOCUMENT_FIELD_TYPE_ERROR.getCode());
+                    assertThat(serviceException.getMessage()).contains("dependsOnTaskId", "应为整数");
+                });
+    }
+
 }

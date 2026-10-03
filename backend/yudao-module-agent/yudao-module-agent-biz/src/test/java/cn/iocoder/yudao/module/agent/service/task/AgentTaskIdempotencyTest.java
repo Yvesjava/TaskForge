@@ -35,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -192,6 +193,33 @@ class AgentTaskIdempotencyTest {
         assertThat(persisted.getPayload()).isNull();
     }
 
+    @Test
+    void submit_invalidIdempotencyKeyFormat_throwsBeforePersistence() {
+        assertThatThrownBy(() -> taskService.submit(docText(), "short"))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID.getCode()));
+        assertThatThrownBy(() -> taskService.submit(docText(), "bad key with spaces!"))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID.getCode()));
+
+        verifyNoInteractions(documentParser, taskMapper, operationLogMapper);
+    }
+
+    @Test
+    void submit_invalidTaskNo_throwsWithoutPersistingTask() {
+        when(documentParser.parse(anyString())).thenReturn(taskDocumentWithTaskNo("bad task no"));
+
+        assertThatThrownBy(() -> taskService.submit(docText(), IDEMPOTENCY_KEY))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.DOCUMENT_TASK_NO_INVALID.getCode()));
+
+        verify(taskMapper, never()).insert(any(AgentTaskDO.class));
+        verify(operationLogMapper, never()).insert(any(AgentTaskOperationLogDO.class));
+    }
+
     private AgentTaskOperationRespVO invokeLifecycle(AgentTaskAction action) {
         return switch (action) {
             case PAUSE -> taskService.pause(TASK_ID, IDEMPOTENCY_KEY);
@@ -257,6 +285,20 @@ class AgentTaskIdempotencyTest {
         return TaskDocument.builder()
                 .frontMatter(TaskFrontMatter.builder()
                         .taskId(TASK_NO)
+                        .title("会员充值优惠券抵扣全栈支持")
+                        .targetBranch("feature/TASK-20261001-088")
+                        .timeoutMinutes(45)
+                        .repoUrl("git@github.com:Yvesjava/TaskForge.git")
+                        .baseBranch("main")
+                        .build())
+                .body("# 需求目标与上下文\n")
+                .build();
+    }
+
+    private TaskDocument taskDocumentWithTaskNo(String taskNo) {
+        return TaskDocument.builder()
+                .frontMatter(TaskFrontMatter.builder()
+                        .taskId(taskNo)
                         .title("会员充值优惠券抵扣全栈支持")
                         .targetBranch("feature/TASK-20261001-088")
                         .timeoutMinutes(45)
