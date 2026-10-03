@@ -53,6 +53,15 @@ yudao:
       timeout: ${TASKFORGE_AGENT_EXEC_TIMEOUT:30m}
       # stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记
       max-output-bytes: ${TASKFORGE_AGENT_EXEC_MAX_OUTPUT_BYTES:262144}
+    compensation:
+      # 补偿任务调度间隔（毫秒），覆盖残留工作区、过期租约与失败通知三类补偿
+      fixed-delay-ms: ${TASKFORGE_AGENT_COMPENSATION_DELAY_MS:30000}
+      # 每轮补偿最多处理的失败通知 Outbox 条数
+      notice-dispatch-batch-size: ${TASKFORGE_AGENT_COMPENSATION_NOTICE_BATCH_SIZE:50}
+      # 失败通知默认最大重试次数
+      notice-max-retries: ${TASKFORGE_AGENT_COMPENSATION_NOTICE_MAX_RETRIES:3}
+      # 失败通知重发退避间隔（秒）
+      notice-retry-backoff-seconds: ${TASKFORGE_AGENT_COMPENSATION_NOTICE_BACKOFF_SECONDS:60}
     secret:
       # credential_ref 到凭证值的本地映射；生产环境优先使用外部 Secret Manager
       # 或 TASKFORGE_SECRET_<REFERENCE> 环境变量注入，禁止把真实凭证写入仓库。
