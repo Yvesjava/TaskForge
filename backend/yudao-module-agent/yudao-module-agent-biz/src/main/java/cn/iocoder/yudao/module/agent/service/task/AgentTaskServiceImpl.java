@@ -2,6 +2,8 @@ package cn.iocoder.yudao.module.agent.service.task;
 
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
@@ -21,6 +23,12 @@ import java.util.regex.Pattern;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.DOCUMENT_TASK_NO_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUMENT_IF_MATCH_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUMENT_IF_MATCH_MISMATCH;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUMENT_IF_MATCH_REQUIRED;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOCUMENT_STATE_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOC_VERSION_CONFLICT;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_NOT_FOUND;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_TASK_NO_DUPLICATE;
@@ -38,7 +46,9 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT
 public class AgentTaskServiceImpl implements AgentTaskService {
 
     private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_PAUSED = "PAUSED";
     private static final String ACTION_SUBMIT = "SUBMIT";
+    private static final String ACTION_EDIT = "EDIT";
     private static final int DEFAULT_PRIORITY = 100;
     private static final Pattern IDEMPOTENCY_KEY_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{16,128}$");
     private static final Pattern TASK_NO_PATTERN = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$");
@@ -113,6 +123,73 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         return buildResponse(task, operationLog);
     }
 
+    @Override
+    public AgentTaskUpdateDocumentRespVO updateDocument(Long id,
+                                                        AgentTaskUpdateDocumentReqVO reqVO,
+                                                        String idempotencyKey,
+                                                        String ifMatch) {
+        validateIdempotencyKey(idempotencyKey);
+        validateIfMatch(ifMatch, reqVO.getDocVersion());
+
+        // 1. 幂等键快速命中：同一任务 + 同一幂等键已执行过，直接返回第一次编辑结果
+        AgentTaskOperationLogDO existingLog = operationLogMapper.selectByTaskIdAndRequestKey(id, idempotencyKey);
+        if (existingLog != null) {
+            AgentTaskDO existingTask = taskMapper.selectById(id);
+            if (existingTask != null) {
+                return buildUpdateResponse(existingTask, existingLog);
+            }
+        }
+
+        AgentTaskDO task = taskMapper.selectById(id);
+        if (task == null) {
+            throw exception(TASK_NOT_FOUND);
+        }
+        if (!STATUS_PAUSED.equals(task.getStatus())) {
+            throw exception(TASK_DOCUMENT_STATE_INVALID);
+        }
+        if (!task.getDocVersion().equals(reqVO.getDocVersion())) {
+            throw exception(TASK_DOC_VERSION_CONFLICT, task.getDocVersion());
+        }
+
+        // 2. 条件更新，以 docVersion 乐观锁防止覆盖他人修改
+        int updated = taskMapper.updateDocumentIfVersionMatches(
+                id, reqVO.getDocVersion(), reqVO.getDocument(),
+                reqVO.getTimeoutMinutes(), reqVO.getPriority(), reqVO.getDependsOnTaskId());
+        if (updated == 0) {
+            AgentTaskDO current = taskMapper.selectById(id);
+            if (current == null) {
+                throw exception(TASK_NOT_FOUND);
+            }
+            if (!STATUS_PAUSED.equals(current.getStatus())) {
+                throw exception(TASK_DOCUMENT_STATE_INVALID);
+            }
+            throw exception(TASK_DOC_VERSION_CONFLICT, current.getDocVersion());
+        }
+
+        // 3. 写入 EDIT 审计日志；并发重复幂等键时返回胜者
+        Integer newVersion = reqVO.getDocVersion() + 1;
+        AgentTaskOperationLogDO operationLog = buildEditLog(id, idempotencyKey, newVersion);
+        try {
+            operationLogMapper.insert(operationLog);
+        } catch (DuplicateKeyException ex) {
+            AgentTaskOperationLogDO winner = operationLogMapper.selectByTaskIdAndRequestKey(id, idempotencyKey);
+            if (winner == null) {
+                winner = operationLogMapper.selectByRequestKey(idempotencyKey);
+            }
+            if (winner != null && id.equals(winner.getTaskId())) {
+                AgentTaskDO winnerTask = taskMapper.selectById(id);
+                if (winnerTask != null) {
+                    return buildUpdateResponse(winnerTask, winner);
+                }
+            }
+            throw ex;
+        }
+
+        // 4. 重新读取最新任务，返回权威状态与版本
+        AgentTaskDO updatedTask = taskMapper.selectById(id);
+        return buildUpdateResponse(updatedTask != null ? updatedTask : task, operationLog);
+    }
+
     private void validateIdempotencyKey(String idempotencyKey) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
             throw exception(TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED);
@@ -169,6 +246,50 @@ public class AgentTaskServiceImpl implements AgentTaskService {
 
     private AgentTaskSubmitRespVO buildResponse(AgentTaskDO task, AgentTaskOperationLogDO operationLog) {
         AgentTaskSubmitRespVO response = new AgentTaskSubmitRespVO();
+        response.setTaskId(task.getId());
+        response.setTaskNo(task.getTaskNo());
+        response.setStatus(task.getStatus());
+        response.setDocVersion(task.getDocVersion());
+        response.setExecutionGeneration(task.getExecutionGeneration());
+        response.setOperationId("op_" + operationLog.getId());
+        return response;
+    }
+
+    private void validateIfMatch(String ifMatch, Integer expectedVersion) {
+        if (ifMatch == null || ifMatch.isBlank()) {
+            throw exception(TASK_DOCUMENT_IF_MATCH_REQUIRED);
+        }
+        Integer parsed;
+        try {
+            parsed = Integer.valueOf(ifMatch.trim());
+        } catch (NumberFormatException ex) {
+            throw exception(TASK_DOCUMENT_IF_MATCH_INVALID);
+        }
+        if (parsed < 1) {
+            throw exception(TASK_DOCUMENT_IF_MATCH_INVALID);
+        }
+        if (!parsed.equals(expectedVersion)) {
+            throw exception(TASK_DOCUMENT_IF_MATCH_MISMATCH);
+        }
+    }
+
+    private AgentTaskOperationLogDO buildEditLog(Long taskId, String idempotencyKey, Integer docVersion) {
+        return AgentTaskOperationLogDO.builder()
+                .taskId(taskId)
+                .action(ACTION_EDIT)
+                .fromStatus(STATUS_PAUSED)
+                .toStatus(STATUS_PAUSED)
+                .docVersion(docVersion)
+                .requestIdempotencyKey(idempotencyKey)
+                .operatorId(SecurityFrameworkUtils.getLoginUserId())
+                .operatorName(SecurityFrameworkUtils.getLoginUserNickname())
+                .payload(null)
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private AgentTaskUpdateDocumentRespVO buildUpdateResponse(AgentTaskDO task, AgentTaskOperationLogDO operationLog) {
+        AgentTaskUpdateDocumentRespVO response = new AgentTaskUpdateDocumentRespVO();
         response.setTaskId(task.getId());
         response.setTaskNo(task.getTaskNo());
         response.setStatus(task.getStatus());
