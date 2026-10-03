@@ -92,6 +92,9 @@ public class AgentTaskStateMachineImpl implements AgentTaskStateMachine {
             case MERGE_CONFLICT -> taskMapper.markMergeConflictIfAccepted(id);
             case MERGE_RETRY -> taskMapper.recoverMergeIfPendingManual(id);
             case RE_ENQUEUE -> taskMapper.reEnqueueIfEnded(id);
+            case CLONE_RE_ENQUEUE -> throw exception(TASK_STATUS_TRANSITION_NOT_ALLOWED,
+                    command.getFromStatus() == null ? null : command.getFromStatus().getValue(),
+                    command.getAction().getValue());
             case DELETE -> taskMapper.softDeleteIfCanceled(id);
             case CLEANUP_PASS -> taskMapper.finishReset(id, target.getValue());
         };

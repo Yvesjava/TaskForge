@@ -4,8 +4,10 @@ import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskCancelReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskDiffRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskReEnqueueReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskRejectReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetRespVO;
@@ -14,6 +16,7 @@ import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubm
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskSubmitRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
+import cn.iocoder.yudao.module.agent.service.task.AgentTaskDiffService;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskResetService;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,12 +51,23 @@ public class AgentTaskController {
     @Resource
     private AgentTaskResetService resetService;
 
+    @Resource
+    private AgentTaskDiffService diffService;
+
     @GetMapping("/get")
     @Operation(summary = "获得任务详情")
     @Parameter(name = "id", description = "任务编号", required = true, example = "9012")
     @PreAuthorize("@ss.hasPermission('agent:task:query')")
     public CommonResult<AgentTaskRespVO> getTask(@RequestParam("id") Long id) {
         return success(BeanUtils.toBean(taskService.getTask(id), AgentTaskRespVO.class));
+    }
+
+    @GetMapping("/{id}/diff")
+    @Operation(summary = "获得任务结果（Diff/日志/测试报告/分支）")
+    @Parameter(name = "id", description = "任务编号", required = true, example = "9012")
+    @PreAuthorize("@ss.hasPermission('agent:task:query')")
+    public CommonResult<AgentTaskDiffRespVO> getTaskDiff(@PathVariable("id") Long id) {
+        return success(diffService.getTaskDiff(id));
     }
 
     @GetMapping("/page")
@@ -123,12 +137,15 @@ public class AgentTaskController {
     }
 
     @PostMapping("/{id}/re-enqueue")
-    @Operation(summary = "重新入队任务")
+    @Operation(summary = "重新入队任务（原位恢复或克隆为全新任务编号）")
     @PreAuthorize("@ss.hasPermission('agent:task:re-enqueue')")
     public CommonResult<AgentTaskOperationRespVO> reEnqueue(
             @PathVariable("id") Long id,
+            @Valid @RequestBody(required = false) AgentTaskReEnqueueReqVO reqVO,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
-        return success(taskService.reEnqueue(id, idempotencyKey));
+        boolean clone = reqVO != null && Boolean.TRUE.equals(reqVO.getClone());
+        return success(clone ? taskService.reEnqueueClone(id, idempotencyKey)
+                : taskService.reEnqueue(id, idempotencyKey));
     }
 
     @DeleteMapping("/{id}")
