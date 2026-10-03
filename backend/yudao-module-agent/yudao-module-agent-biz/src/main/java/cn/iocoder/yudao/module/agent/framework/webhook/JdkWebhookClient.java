@@ -29,9 +29,11 @@ public class JdkWebhookClient implements WebhookHttpClient {
 
     private final HttpClient httpClient;
     private final WebhookProperties properties;
+    private final WebhookSignature signature;
 
-    public JdkWebhookClient(WebhookProperties properties) {
+    public JdkWebhookClient(WebhookProperties properties, WebhookSignature signature) {
         this.properties = Objects.requireNonNull(properties, "properties 不能为空");
+        this.signature = Objects.requireNonNull(signature, "signature 不能为空");
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(resolveConnectTimeout(properties.getConnectTimeout()))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -45,9 +47,13 @@ public class JdkWebhookClient implements WebhookHttpClient {
                 ? resolveReadTimeout(properties.getReadTimeout()) : request.timeout();
         String body = JsonUtils.toJsonString(request.payload());
         try {
+            WebhookSignedRequest signed = signature.sign(body);
             HttpRequest httpRequest = HttpRequest.newBuilder(URI.create(request.url()))
                     .timeout(timeout)
                     .header("Content-Type", "application/json")
+                    .header(WebhookSignatureHeaders.TIMESTAMP, signed.timestamp())
+                    .header(WebhookSignatureHeaders.NONCE, signed.nonce())
+                    .header(WebhookSignatureHeaders.SIGNATURE, signed.signature())
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                     .build();
             HttpResponse<String> response = httpClient.send(
