@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.agent.service.workspace;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandException;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandResult;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandRunner;
+import cn.iocoder.yudao.module.agent.framework.workspace.git.GitErrorNormalizer;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitRefs;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -151,7 +152,7 @@ public class TaskBranchManager {
         try {
             gitRunner.run(repo, List.of("update-ref", "refs/heads/" + targetBranch, baseCommit));
         } catch (GitCommandException e) {
-            throw exception(BRANCH_CREATE_FAILED, projectCode, targetBranch, reasonOf(e));
+            throw exception(BRANCH_CREATE_FAILED, projectCode, targetBranch, GitErrorNormalizer.detail(e));
         }
 
         BranchOperation operation = new BranchOperation(
@@ -178,7 +179,7 @@ public class TaskBranchManager {
             gitRunner.run(repo, List.of("push", REMOTE_NAME,
                     "refs/heads/" + targetBranch + ":refs/heads/" + targetBranch));
         } catch (GitCommandException e) {
-            throw exception(BRANCH_PUSH_FAILED, projectCode, targetBranch, reasonOf(e));
+            throw exception(BRANCH_PUSH_FAILED, projectCode, targetBranch, GitErrorNormalizer.detail(e));
         }
 
         BranchOperation operation = new BranchOperation(
@@ -208,7 +209,7 @@ public class TaskBranchManager {
             try {
                 gitRunner.run(repo, List.of("branch", "-D", targetBranch));
             } catch (GitCommandException e) {
-                throw exception(BRANCH_DELETE_FAILED, projectCode, targetBranch, reasonOf(e));
+                throw exception(BRANCH_DELETE_FAILED, projectCode, targetBranch, GitErrorNormalizer.detail(e));
             }
             operations.add(new BranchOperation(
                     ACTION_DELETE_LOCAL_BRANCH, projectCode, targetBranch, null, null, localCommit.get()));
@@ -220,7 +221,7 @@ public class TaskBranchManager {
             try {
                 gitRunner.run(repo, List.of("push", REMOTE_NAME, "--delete", targetBranch));
             } catch (GitCommandException e) {
-                throw exception(BRANCH_DELETE_FAILED, projectCode, targetBranch, reasonOf(e));
+                throw exception(BRANCH_DELETE_FAILED, projectCode, targetBranch, GitErrorNormalizer.detail(e));
             }
             operations.add(new BranchOperation(
                     ACTION_DELETE_REMOTE_BRANCH, projectCode, targetBranch, null, REMOTE_NAME, null));
@@ -263,17 +264,6 @@ public class TaskBranchManager {
         } catch (GitCommandException e) {
             return e.getExitCode();
         }
-    }
-
-    private String reasonOf(Exception e) {
-        if (e instanceof GitCommandException git) {
-            String output = git.getSanitizedOutput();
-            if (output.isEmpty()) {
-                return git.getMessage();
-            }
-            return git.getMessage() + "：" + output;
-        }
-        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 
 }

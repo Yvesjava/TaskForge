@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.agent.service.workspace;
 import cn.iocoder.yudao.module.agent.framework.workspace.config.AgentWorkspaceProperties;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandException;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitCommandRunner;
+import cn.iocoder.yudao.module.agent.framework.workspace.git.GitErrorNormalizer;
 import cn.iocoder.yudao.module.agent.framework.workspace.git.GitRefs;
 import org.springframework.stereotype.Component;
 
@@ -130,7 +131,7 @@ public class BareRepoManager {
             Files.createDirectories(bareRepoRoot);
             gitRunner.run(bareRepoRoot, List.of("clone", "--bare", gitUrl, repoDir.toString()));
         } catch (GitCommandException | IOException e) {
-            throw exception(BARE_REPO_INIT_FAILED, projectCode, reasonOf(e));
+            throw exception(BARE_REPO_INIT_FAILED, projectCode, GitErrorNormalizer.detail(e));
         }
         if (!isBareRepository(repoDir)) {
             throw exception(BARE_REPO_INIT_FAILED, projectCode, "clone 后未生成裸仓库目录");
@@ -148,7 +149,7 @@ public class BareRepoManager {
             gitRunner.run(repoDir, List.of("fetch", "origin",
                     "+refs/heads/" + branch + ":refs/heads/" + branch));
         } catch (GitCommandException e) {
-            throw exception(BARE_REPO_FETCH_FAILED, projectCode, branch, reasonOf(e));
+            throw exception(BARE_REPO_FETCH_FAILED, projectCode, branch, GitErrorNormalizer.detail(e));
         }
     }
 
@@ -181,17 +182,6 @@ public class BareRepoManager {
                 && Files.isDirectory(dir.resolve("objects"))
                 && Files.isDirectory(dir.resolve("refs"))
                 && !Files.exists(dir.resolve(".git"));
-    }
-
-    private String reasonOf(Exception e) {
-        if (e instanceof GitCommandException git) {
-            String output = git.getSanitizedOutput();
-            if (output.isEmpty()) {
-                return git.getMessage();
-            }
-            return git.getMessage() + "：" + output;
-        }
-        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 
 }

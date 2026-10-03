@@ -43,6 +43,7 @@ public interface ErrorCodeConstants {
     ErrorCode WORKTREE_SYMLINK_NOT_ALLOWED = new ErrorCode(1_061_001_021, "工作区路径不允许包含符号链接：{}");
     ErrorCode WORKTREE_RESIDUE_SCAN_FAILED = new ErrorCode(1_061_001_022, "工作区残留检测失败：{}");
     ErrorCode WORKTREE_WRITE_WORKFLOW_FAILED = new ErrorCode(1_061_001_023, "写入系统级执行约束失败：{}");
+    ErrorCode WORKTREE_CLEANUP_FAILED = new ErrorCode(1_061_001_024, "工作区清理失败：{}");
 
     // ========== 任务文档模块 1-061-002-000 ==========
     ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");
