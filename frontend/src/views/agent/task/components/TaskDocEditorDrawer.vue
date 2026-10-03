@@ -30,10 +30,7 @@
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="任务编号" prop="taskId">
-                <el-input
-                  v-model="form.frontMatter.taskId"
-                  placeholder="如 TASK-20261001-001"
-                />
+                <el-input v-model="form.frontMatter.taskId" placeholder="如 TASK-20261001-001" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -45,10 +42,7 @@
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="目标分支" prop="targetBranch">
-                <el-input
-                  v-model="form.frontMatter.targetBranch"
-                  placeholder="如 feat/task-001"
-                />
+                <el-input v-model="form.frontMatter.targetBranch" placeholder="如 feat/task-001" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -81,11 +75,7 @@
 
           <template v-else>
             <el-divider content-position="left">项目引用</el-divider>
-            <div
-              v-for="(project, index) in projects"
-              :key="index"
-              class="task-project-ref"
-            >
+            <div v-for="(project, index) in projects" :key="index" class="task-project-ref">
               <el-row :gutter="12">
                 <el-col :span="7">
                   <el-form-item :label="`项目代号 ${index + 1}`" label-width="100px">
@@ -355,10 +345,7 @@ const handleSave = async () => {
       frontMatter.projects = undefined
     }
   }
-  const document = buildTaskDocument(
-    frontMatter,
-    form.sections
-  )
+  const document = buildTaskDocument(frontMatter, form.sections)
 
   saving.value = true
   try {

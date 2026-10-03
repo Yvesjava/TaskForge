@@ -56,6 +56,8 @@ Copy-Item frontend/.env.local.example frontend/.env.local
 docker compose up -d
 ```
 
+Non-local builds (`build:dev` / `build:test` / `build:stage` / `build:prod`) load the committed templates `frontend/.env.dev` / `.env.test` / `.env.stage` / `.env.prod` (placeholder domains only, no secrets); see `docs/工程约定.md`.
+
 The Compose stack exposes MySQL on `3306` and Redis on `6379`. The first MySQL initialization imports `backend/sql/mysql/ruoyi-vue-pro.sql` and `backend/sql/mysql/quartz.sql`. Existing Docker volumes are not reinitialized automatically.
 
 Start the backend from `backend/`:
@@ -105,7 +107,7 @@ The frontend listens on `http://localhost:3000` and sends API requests to `http:
 
 - Repo-wide encoding, line endings, and indentation are defined by the root `.editorconfig` and `.gitattributes` (UTF-8, LF, no tabs); `frontend/.editorconfig` governs frontend files.
 - Backend Java uses 4-space indentation and Yudao layer naming (`Controller` / `Service` / `ServiceImpl` / `Mapper` / `DO` / `VO` / `Convert`). There is no backend formatter plugin yet, so format consistency is enforced by review plus compilation.
-- Frontend formatting is enforced by ESLint, Prettier, and Stylelint. Run `pnpm lint:eslint` / `pnpm lint:style` / `pnpm lint:format` (fix) from `frontend/`. Note: `pnpm lint` currently reports 22 pre-existing upstream stylelint violations (tracked by TASK-BASE-05 / LZC-67); until that is fixed, lint only the files you changed (lint-staged) and never reformat unrelated modules.
+- Frontend formatting is enforced by ESLint, Prettier, and Stylelint. Run `pnpm lint:eslint` / `pnpm lint:style` / `pnpm lint:format` (fix) from `frontend/`. `pnpm lint` is a mandatory gate and must pass with 0 errors on a clean checkout; lint only the files you changed (lint-staged) and never reformat unrelated modules.
 - Keep the full convention set in `docs/工程约定.md`; do not restate divergent rules here or in `README.md`.
 
 ### Logging
@@ -133,6 +135,7 @@ mvn -pl yudao-server -am -DskipTests package
 Set-Location ..\frontend
 pnpm install --frozen-lockfile
 pnpm build:local
+pnpm build:prod   # CI gatekeeper（--mode prod，加载 frontend/.env.prod）
 ```
 
 `mvn -B clean test-compile` and `pnpm install --frozen-lockfile && pnpm run build:prod` are the CI gatekeeper commands (`.github/workflows/ci.yml`); keep them working. For service-level verification, confirm Docker health, `http://localhost:48080/v3/api-docs`, and `http://localhost:3000/`. Run broader tests when a change crosses module boundaries or changes shared contracts.
