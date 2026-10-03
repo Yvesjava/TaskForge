@@ -21,6 +21,9 @@ public class AgentTaskRespVO {
     @Schema(description = "任务状态", requiredMode = Schema.RequiredMode.REQUIRED, example = "PENDING")
     private String status;
 
+    @Schema(description = "任务需求文档（含计划与验收标准）", example = "---\ntaskId: \"TASK-20261001-088\"\n...")
+    private String taskDoc;
+
     @Schema(description = "执行优先级（数值越小越优先）", requiredMode = Schema.RequiredMode.REQUIRED, example = "100")
     private Integer priority;
 
