@@ -102,6 +102,7 @@
                retry_times = 0,
                cost_ms = 0,
                cancel_reason = NULL,
+               workspace_path = NULL,
                update_time = NOW()
          WHERE id = #{id}
            AND status = 'RESETTING'
