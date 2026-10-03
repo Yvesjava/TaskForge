@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +46,9 @@ class AgentTaskClaimServiceTest {
 
     @Mock
     private AgentSchedulerProperties schedulerProperties;
+
+    @Mock
+    private AgentTaskLeaseService taskLeaseService;
 
     @InjectMocks
     private AgentTaskClaimServiceImpl claimService;
@@ -92,6 +97,8 @@ class AgentTaskClaimServiceTest {
         assertThat(command.getWorkerId()).isEqualTo("worker-1");
         assertThat(command.getGeneration()).isEqualTo(3L);
         assertThat(command.getLeaseUntil()).isNotNull();
+
+        verify(taskLeaseService).acquire(eq(1001L), eq("worker-1"), eq(3L), any(LocalDateTime.class));
     }
 
     @Test

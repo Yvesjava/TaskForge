@@ -39,6 +39,9 @@ public class AgentTaskClaimServiceImpl implements AgentTaskClaimService {
     @Resource
     private AgentSchedulerProperties schedulerProperties;
 
+    @Resource
+    private AgentTaskLeaseService taskLeaseService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Optional<AgentTaskDO> claimNextTask() {
@@ -68,6 +71,9 @@ public class AgentTaskClaimServiceImpl implements AgentTaskClaimService {
         task.setWorkerId(workerId);
         task.setLeaseUntil(leaseUntil);
         task.setExecutionGeneration(generation);
+
+        // 抢占成功后写入 Redis 租约与心跳键，供后续续租/存活判断与快速告警使用
+        taskLeaseService.acquire(task.getId(), workerId, generation, leaseUntil);
         return Optional.of(task);
     }
 

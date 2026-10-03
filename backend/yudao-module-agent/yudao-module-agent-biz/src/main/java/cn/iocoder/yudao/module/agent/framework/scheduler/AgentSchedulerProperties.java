@@ -23,4 +23,14 @@ public class AgentSchedulerProperties {
      */
     private long leaseMinutes = 5;
 
+    /**
+     * 租约 Hash 键在租约到期后的额外保留时长（秒），用于租约异常快速告警
+     */
+    private long leaseBufferSeconds = 60;
+
+    /**
+     * Worker 心跳键 TTL（秒），用于判断 Worker 是否仍存活
+     */
+    private long heartbeatTtlSeconds = 90;
+
 }
