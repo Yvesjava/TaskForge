@@ -34,6 +34,11 @@ public class AgentSchedulerProperties {
     private long heartbeatTtlSeconds = 90;
 
     /**
+     * 取消信号键 TTL（秒），覆盖租约与心跳缓冲窗口，保证旧 Worker 能在有限时间内停止
+     */
+    private long cancelTtlSeconds = 300;
+
+    /**
      * 租约过期扫描每次处理的最大任务数，用于有界批次恢复，避免单次扫描拖垮数据库
      */
     private int recoveryBatchSize = 50;

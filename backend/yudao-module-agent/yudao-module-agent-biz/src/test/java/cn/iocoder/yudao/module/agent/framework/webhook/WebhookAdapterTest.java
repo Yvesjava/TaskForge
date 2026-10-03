@@ -4,6 +4,8 @@ import cn.iocoder.yudao.module.agent.framework.notice.NoticeBranchRef;
 import cn.iocoder.yudao.module.agent.framework.notice.NoticeCard;
 import org.junit.jupiter.api.Test;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -193,7 +197,9 @@ class WebhookAdapterTest {
     void jdkClient_postsJsonAndReturnsStatus() throws Exception {
         try (MiniHttpServer server = new MiniHttpServer(200, "{\"errcode\":0}")) {
             WebhookProperties properties = new WebhookProperties();
-            JdkWebhookClient client = new JdkWebhookClient(properties);
+            properties.setSecret("test-secret");
+            WebhookSignature signature = new WebhookSignature(properties, (nonce, ttl) -> true);
+            JdkWebhookClient client = new JdkWebhookClient(properties, signature);
 
             WebhookResponse response = client.post(WebhookRequest.of(
                     server.url(), Map.of("msgtype", "markdown"), Duration.ofSeconds(5)));
@@ -208,6 +214,16 @@ class WebhookAdapterTest {
             assertThat(captured.path()).isEqualTo("/webhook");
             assertThat(captured.headers().get("Content-Type")).contains("application/json");
             assertThat(captured.body()).contains("\"msgtype\"").contains("\"markdown\"");
+
+            String timestamp = captured.headers().get("X-TaskForge-Timestamp");
+            String nonce = captured.headers().get("X-TaskForge-Nonce");
+            String sign = captured.headers().get("X-TaskForge-Signature");
+            assertThat(timestamp).isNotBlank();
+            assertThat(Math.abs(Long.parseLong(timestamp) - System.currentTimeMillis()))
+                    .isLessThan(60_000L);
+            assertThat(nonce).isNotBlank();
+            assertThat(sign).isEqualTo(hmacSha256Hex(
+                    "test-secret", timestamp + "\n" + nonce + "\n" + captured.body()));
         }
     }
 
@@ -238,6 +254,13 @@ class WebhookAdapterTest {
     private WebhookHttpClient queuedClient(WebhookResponse... responses) {
         Deque<WebhookResponse> queue = new ArrayDeque<>(List.of(responses));
         return request -> queue.pollFirst();
+    }
+
+    private static String hmacSha256Hex(String secret, String content) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return HexFormat.of().formatHex(mac.doFinal(content.getBytes(StandardCharsets.UTF_8)))
+                .toLowerCase(Locale.ROOT);
     }
 
     /**

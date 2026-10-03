@@ -35,10 +35,14 @@ public class AgentTaskLeaseServiceImpl implements AgentTaskLeaseService {
 
     private final AgentSchedulerProperties schedulerProperties;
 
+    private final AgentTaskCancelSignalService cancelSignalService;
+
     public AgentTaskLeaseServiceImpl(StringRedisTemplate stringRedisTemplate,
-                                     AgentSchedulerProperties schedulerProperties) {
+                                     AgentSchedulerProperties schedulerProperties,
+                                     AgentTaskCancelSignalService cancelSignalService) {
         this.stringRedisTemplate = Objects.requireNonNull(stringRedisTemplate, "stringRedisTemplate 不能为空");
         this.schedulerProperties = Objects.requireNonNull(schedulerProperties, "schedulerProperties 不能为空");
+        this.cancelSignalService = Objects.requireNonNull(cancelSignalService, "cancelSignalService 不能为空");
     }
 
     @Override
@@ -46,6 +50,9 @@ public class AgentTaskLeaseServiceImpl implements AgentTaskLeaseService {
         requireTaskId(taskId);
         requireHolder(workerId, generation);
         Objects.requireNonNull(leaseUntil, "leaseUntil 不能为空");
+
+        // 新一轮执行开始，清除上一代次残留的取消信号，避免旧信号影响新 Worker
+        cancelSignalService.clear(taskId);
 
         Map<String, String> fields = new HashMap<>();
         fields.put(LEASE_FIELD_WORKER_ID, workerId);
@@ -98,6 +105,7 @@ public class AgentTaskLeaseServiceImpl implements AgentTaskLeaseService {
         requireTaskId(taskId);
         stringRedisTemplate.delete(leaseKey(taskId));
         stringRedisTemplate.delete(heartbeatKey(taskId));
+        cancelSignalService.clear(taskId);
     }
 
     private HashOperations<String, Object, Object> hashOperations() {
