@@ -18,4 +18,13 @@ public interface ErrorCodeConstants {
     ErrorCode PROJECT_REF_SUB_DIR_INVALID = new ErrorCode(1_061_000_005, "项目 {} 的子目录名无效：{}");
     ErrorCode PROJECT_REF_SUB_DIR_CONFLICT = new ErrorCode(1_061_000_006, "子目录映射冲突：{}");
 
+    // ========== 任务文档模块 1-061-001-000 ==========
+    ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_001_000, "任务文档不能为空");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_FOUND = new ErrorCode(1_061_001_001, "任务文档缺少 YAML Front Matter（--- 起始块）");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_CLOSED = new ErrorCode(1_061_001_002, "任务文档 Front Matter 缺少结束分隔符 ---");
+    ErrorCode DOCUMENT_FRONT_MATTER_EMPTY = new ErrorCode(1_061_001_003, "任务文档 Front Matter 内容不能为空");
+    ErrorCode DOCUMENT_FRONT_MATTER_INVALID = new ErrorCode(1_061_001_004, "任务文档 Front Matter 解析失败：{}");
+    ErrorCode DOCUMENT_FRONT_MATTER_NOT_MAPPING = new ErrorCode(1_061_001_005, "任务文档 Front Matter 顶层必须是键值对映射");
+    ErrorCode DOCUMENT_FIELD_TYPE_ERROR = new ErrorCode(1_061_001_006, "任务文档字段 {}（第 {} 行第 {} 列）{}");
+
 }

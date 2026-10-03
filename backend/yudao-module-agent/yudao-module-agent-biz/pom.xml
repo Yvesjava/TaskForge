@@ -26,6 +26,12 @@
             <version>${revision}</version>
         </dependency>
 
+        <!-- YAML Front Matter 解析：SnakeYAML 版本由 Spring Boot BOM 统一管理 -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
         <!-- 业务组件：多租户。同时传递提供 MyBatis-Plus（DO/Mapper 基类）、Web/Swagger（分页 VO 注解）依赖 -->
         <dependency>
             <groupId>cn.iocoder.boot</groupId>
