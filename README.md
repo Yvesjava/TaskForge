@@ -116,6 +116,18 @@ pnpm build:local
 
 服务级验证见 `AGENTS.md`：确认 Docker 健康、`http://localhost:48080/v3/api-docs` 与 `http://localhost:3000/` 可访问。前端 lint 的上游遗留告警由 LZC-67 跟进，修复前请只对改动文件执行 `pnpm lint:lint-staged`。
 前端本地环境变量统一收敛到 `frontend/.env.local.example`（复制为 `frontend/.env.local`）：`VITE_PORT` 固定前端端口 `3000`，`VITE_BASE_URL`（后端来源地址）与 `VITE_API_URL`（`admin-api` 前缀）拼接为接口基地址 `http://localhost:48080/admin-api`。可用 `pnpm check:env`（在 `frontend/` 下）校验该约定未被破坏。
+
+非本地构建（dev/test/stage/prod）使用对应的受控提交环境模板 `frontend/.env.dev` / `.env.test` / `.env.stage` / `.env.prod`：
+
+| 命令 | Vite mode | 环境文件 | API 基地址（占位） |
+| --- | --- | --- | --- |
+| `pnpm run build:dev` | `dev` | `frontend/.env.dev` | `https://dev-api.example.com/admin-api` |
+| `pnpm run build:test` | `test` | `frontend/.env.test` | `https://test-api.example.com/admin-api` |
+| `pnpm run build:stage` | `stage` | `frontend/.env.stage` | `https://stage-api.example.com/admin-api` |
+| `pnpm run build:prod` | `prod` | `frontend/.env.prod` | `https://api.example.com/admin-api` |
+
+这些模板的域名均为占位值，部署前替换为真实网关地址；严禁写入真实凭证。CI 的 frontend job 运行 `pnpm run build:prod`，产物会内嵌对应环境的 `VITE_BASE_URL + VITE_API_URL`。
+
 ### 验证 Docker 环境
 
 ```powershell

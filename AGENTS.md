@@ -56,6 +56,8 @@ Copy-Item frontend/.env.local.example frontend/.env.local
 docker compose up -d
 ```
 
+Non-local builds (`build:dev` / `build:test` / `build:stage` / `build:prod`) load the committed templates `frontend/.env.dev` / `.env.test` / `.env.stage` / `.env.prod` (placeholder domains only, no secrets); see `docs/工程约定.md`.
+
 The Compose stack exposes MySQL on `3306` and Redis on `6379`. The first MySQL initialization imports `backend/sql/mysql/ruoyi-vue-pro.sql` and `backend/sql/mysql/quartz.sql`. Existing Docker volumes are not reinitialized automatically.
 
 Start the backend from `backend/`:
@@ -133,6 +135,7 @@ mvn -pl yudao-server -am -DskipTests package
 Set-Location ..\frontend
 pnpm install --frozen-lockfile
 pnpm build:local
+pnpm build:prod   # CI gatekeeper（--mode prod，加载 frontend/.env.prod）
 ```
 
 `mvn -B clean test-compile` and `pnpm install --frozen-lockfile && pnpm run build:prod` are the CI gatekeeper commands (`.github/workflows/ci.yml`); keep them working. For service-level verification, confirm Docker health, `http://localhost:48080/v3/api-docs`, and `http://localhost:3000/`. Run broader tests when a change crosses module boundaries or changes shared contracts.
