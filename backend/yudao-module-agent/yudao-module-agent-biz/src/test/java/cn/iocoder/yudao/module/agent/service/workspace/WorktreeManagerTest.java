@@ -124,7 +124,8 @@ class WorktreeManagerTest {
         AgentWorkspaceProperties properties = new AgentWorkspaceProperties();
         properties.setBareRepoRoot(bareRoot.toString());
         properties.setWorkspaceRoot(workspaceRoot.toString());
-        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), gitRunner);
+        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), gitRunner,
+                new WorkflowInjector());
     }
 
     private void initSourceRepo(Path source, String fileName, String content) throws Exception {
