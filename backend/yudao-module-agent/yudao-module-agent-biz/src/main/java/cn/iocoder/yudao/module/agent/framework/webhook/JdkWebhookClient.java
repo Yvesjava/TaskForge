@@ -2,6 +2,7 @@ package cn.iocoder.yudao.module.agent.framework.webhook;
 
 import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.module.agent.framework.notice.NoticeSecretRedactor;
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -95,7 +96,8 @@ public class JdkWebhookClient implements WebhookHttpClient {
     }
 
     private String reasonOf(Exception e) {
-        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        return SecretRedactor.redact(message);
     }
 
 }

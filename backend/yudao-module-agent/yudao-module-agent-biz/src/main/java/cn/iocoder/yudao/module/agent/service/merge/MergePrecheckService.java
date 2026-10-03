@@ -4,6 +4,7 @@ import cn.iocoder.yudao.module.agent.framework.git.platform.GitApiOperator;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitApiOperatorRegistry;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitMergeRequestRef;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitMergeStatus;
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -70,8 +71,9 @@ public class MergePrecheckService {
     }
 
     private String reasonOf(Exception ex) {
-        return ex.getMessage() == null || ex.getMessage().isBlank()
+        String message = ex.getMessage() == null || ex.getMessage().isBlank()
                 ? ex.getClass().getSimpleName() : ex.getMessage();
+        return SecretRedactor.redact(message);
     }
 
 }
