@@ -53,3 +53,8 @@ yudao:
       timeout: ${TASKFORGE_AGENT_EXEC_TIMEOUT:30m}
       # stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记
       max-output-bytes: ${TASKFORGE_AGENT_EXEC_MAX_OUTPUT_BYTES:262144}
+    webhook:
+      # HMAC-SHA256 签名共享密钥；生产环境必须通过 Secret Manager 或环境变量注入
+      secret: ${TASKFORGE_WEBHOOK_SECRET:}
+      # 回调签名时间窗，默认 5 分钟
+      time-window: ${TASKFORGE_WEBHOOK_TIME_WINDOW:5m}

@@ -45,4 +45,15 @@ public class WebhookProperties {
     @Min(0)
     private long retryBackoffMillis = 500;
 
+    /**
+     * HMAC-SHA256 签名共享密钥。发送卡片与接收回调必须使用同一密钥；
+     * 生产环境通过 Secret Manager 或环境变量注入，禁止写入代码库。
+     */
+    private String secret = "";
+
+    /**
+     * 回调签名时间窗，超出该时间窗的回调视为过期并拒绝。默认 5 分钟。
+     */
+    private Duration timeWindow = Duration.ofMinutes(5);
+
 }
