@@ -44,6 +44,12 @@
             <artifactId>yudao-spring-boot-starter-redis</artifactId>
         </dependency>
 
+        <!-- 可观测性：Micrometer 耗时/失败指标，版本由 spring-boot-dependencies 统一管理 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
         <!-- database migration: 四类表结构由 Flyway 在 taskforge profile 启动时执行 -->
         <dependency>
             <groupId>org.flywaydb</groupId>
