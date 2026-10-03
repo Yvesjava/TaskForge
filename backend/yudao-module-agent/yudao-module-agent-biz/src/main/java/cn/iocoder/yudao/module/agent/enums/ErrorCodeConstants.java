@@ -49,10 +49,15 @@ public interface ErrorCodeConstants {
     ErrorCode DOCUMENT_FRONT_MATTER_INVALID = new ErrorCode(1_061_002_004, "任务文档 Front Matter 解析失败：{}");
     ErrorCode DOCUMENT_FRONT_MATTER_NOT_MAPPING = new ErrorCode(1_061_002_005, "任务文档 Front Matter 顶层必须是键值对映射");
     ErrorCode DOCUMENT_FIELD_TYPE_ERROR = new ErrorCode(1_061_002_006, "任务文档字段 {}（第 {} 行第 {} 列）{}");
-    ErrorCode DOCUMENT_SECTION_MISSING = new ErrorCode(1_061_002_007, "任务文档缺少正文小节：{}");
-    ErrorCode DOCUMENT_SECTION_EMPTY = new ErrorCode(1_061_002_008, "任务文档正文小节内容为空：{}");
-    ErrorCode DOCUMENT_SECTION_NOT_CHECKLIST = new ErrorCode(1_061_002_009, "任务文档正文小节 {} 必须包含可勾选清单");
-    ErrorCode DOCUMENT_SECTION_STEP_NOT_FOUND = new ErrorCode(1_061_002_010, "任务文档正文小节 {} 缺少验收步骤列表");
-    ErrorCode DOCUMENT_SECTION_STEP_NOT_EXECUTABLE = new ErrorCode(1_061_002_011, "任务文档正文小节 {} 的验收步骤必须为可执行命令或明确检查项");
+    ErrorCode DOCUMENT_FIELD_REQUIRED = new ErrorCode(1_061_002_007, "任务文档必填字段缺失：{}");
+    ErrorCode DOCUMENT_REPO_MODE_CONFLICT = new ErrorCode(1_061_002_008, "任务文档同时声明单仓与多仓仓库配置");
+    ErrorCode DOCUMENT_REPO_MODE_MISSING = new ErrorCode(1_061_002_009, "任务文档缺少仓库配置（单仓 repoUrl/baseBranch 或多仓 projects）");
+    ErrorCode DOCUMENT_TARGET_BRANCH_INVALID = new ErrorCode(1_061_002_010, "任务文档目标分支无效：{}");
+    ErrorCode DOCUMENT_BASE_BRANCH_INVALID = new ErrorCode(1_061_002_011, "任务文档基线分支无效：{}");
+    ErrorCode DOCUMENT_SECTION_MISSING = new ErrorCode(1_061_002_012, "任务文档缺少正文小节：{}");
+    ErrorCode DOCUMENT_SECTION_EMPTY = new ErrorCode(1_061_002_013, "任务文档正文小节内容为空：{}");
+    ErrorCode DOCUMENT_SECTION_NOT_CHECKLIST = new ErrorCode(1_061_002_014, "任务文档正文小节 {} 必须包含可勾选清单");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_FOUND = new ErrorCode(1_061_002_015, "任务文档正文小节 {} 缺少验收步骤列表");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_EXECUTABLE = new ErrorCode(1_061_002_016, "任务文档正文小节 {} 的验收步骤必须为可执行命令或明确检查项");
 
 }
