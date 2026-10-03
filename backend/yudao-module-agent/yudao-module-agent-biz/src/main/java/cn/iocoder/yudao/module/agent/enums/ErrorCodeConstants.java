@@ -42,5 +42,10 @@ public interface ErrorCodeConstants {
     ErrorCode DOCUMENT_FRONT_MATTER_INVALID = new ErrorCode(1_061_002_004, "任务文档 Front Matter 解析失败：{}");
     ErrorCode DOCUMENT_FRONT_MATTER_NOT_MAPPING = new ErrorCode(1_061_002_005, "任务文档 Front Matter 顶层必须是键值对映射");
     ErrorCode DOCUMENT_FIELD_TYPE_ERROR = new ErrorCode(1_061_002_006, "任务文档字段 {}（第 {} 行第 {} 列）{}");
+    ErrorCode DOCUMENT_SECTION_MISSING = new ErrorCode(1_061_002_007, "任务文档缺少正文小节：{}");
+    ErrorCode DOCUMENT_SECTION_EMPTY = new ErrorCode(1_061_002_008, "任务文档正文小节内容为空：{}");
+    ErrorCode DOCUMENT_SECTION_NOT_CHECKLIST = new ErrorCode(1_061_002_009, "任务文档正文小节 {} 必须包含可勾选清单");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_FOUND = new ErrorCode(1_061_002_010, "任务文档正文小节 {} 缺少验收步骤列表");
+    ErrorCode DOCUMENT_SECTION_STEP_NOT_EXECUTABLE = new ErrorCode(1_061_002_011, "任务文档正文小节 {} 的验收步骤必须为可执行命令或明确检查项");
 
 }
