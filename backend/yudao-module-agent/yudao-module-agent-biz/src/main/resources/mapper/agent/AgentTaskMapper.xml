@@ -24,6 +24,24 @@
          FOR UPDATE SKIP LOCKED
     </select>
 
+    <!-- 短事务抢占：按优先级、创建时间升序锁定下一个可执行任务，并校验前置任务已完成 -->
+    <select id="selectNextPendingTaskForUpdate" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO">
+        SELECT *
+          FROM agent_task
+         WHERE status = 'PENDING'
+           AND deleted = 0
+           AND (depends_on_task_id IS NULL OR EXISTS (
+                   SELECT 1
+                     FROM agent_task prerequisite
+                    WHERE prerequisite.id = agent_task.depends_on_task_id
+                      AND prerequisite.status = 'COMPLETED'
+                      AND prerequisite.deleted = 0
+               ))
+         ORDER BY priority ASC, create_time ASC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED
+    </select>
+
     <!-- 抢占：PENDING -> RUNNING，写入 Worker 与租约；条件更新影响行数为 0 表示已被抢占/暂停/取消 -->
     <update id="markTaskRunning">
         UPDATE agent_task
