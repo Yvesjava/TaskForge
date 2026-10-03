@@ -125,6 +125,55 @@ class SecurityPolicyTest {
     }
 
     @Test
+    void requireSafeIdentifier_rejectsTooLongDoubleDotAndTrailingDot() {
+        assertThatThrownBy(() -> PathSecurityPolicy.requireSafeTaskNo("a".repeat(65)))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.SECURITY_TASK_NO_INVALID.getCode()));
+        assertThatThrownBy(() -> PathSecurityPolicy.requireSafeTaskNo("a..b"))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.SECURITY_TASK_NO_INVALID.getCode()));
+        assertThatThrownBy(() -> PathSecurityPolicy.requireSafeProjectCode("a."))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.SECURITY_PROJECT_CODE_INVALID.getCode()));
+    }
+
+    @Test
+    void checkExecution_rejectsNullBranch() {
+        assertThatThrownBy(() -> securityPolicy.checkExecution(
+                "TASK-1", null, List.of(), List.of()))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.SECURITY_BRANCH_INVALID.getCode()));
+    }
+
+    @Test
+    void checkExecution_rejectsInvalidProjectBaseBranch() {
+        WorkspaceProject project = WorkspaceProject.builder()
+                .projectCode("backend-service")
+                .gitUrl("git@example.com/demo.git")
+                .baseBranch("bad branch")
+                .subDir("backend")
+                .build();
+
+        assertThatThrownBy(() -> securityPolicy.checkExecution(
+                "TASK-1", "feature/x", List.of(project), List.of()))
+                .isInstanceOf(ServiceException.class)
+                .satisfies(ex -> assertThat(((ServiceException) ex).getCode())
+                        .isEqualTo(ErrorCodeConstants.SECURITY_BRANCH_INVALID.getCode()));
+    }
+
+    @Test
+    void checkExecution_nullProjectsAndCommands_doesNotThrow() {
+        assertThatCode(() -> securityPolicy.checkExecution("TASK-1", "feature/x", null, null))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> securityPolicy.checkCommands(null))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void checkExecution_rejectsNonWhitelistedCommand() {
         CommandSpec command = new CommandSpec("sh", List.of("-c", "rm -rf /"), null);
         doThrow(new CommandNotAllowedException("sh")).when(commandGate).validate(any(CommandSpec.class));
