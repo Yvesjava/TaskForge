@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.agent.framework.exec.CodexRunRequest;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGate;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGateResult;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandStepResult;
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachine;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskTransitionCommand;
 import cn.iocoder.yudao.module.agent.service.workspace.CompositeWorkspace;
@@ -196,7 +197,8 @@ public class AgentTaskExecutor {
         if (error != null) {
             builder.append("=== Error ===\n")
                     .append(error.getClass().getName()).append(": ")
-                    .append(error.getMessage() == null ? "" : error.getMessage()).append('\n');
+                    .append(SecretRedactor.redact(error.getMessage() == null ? "" : error.getMessage()))
+                    .append('\n');
         }
         return builder.toString();
     }

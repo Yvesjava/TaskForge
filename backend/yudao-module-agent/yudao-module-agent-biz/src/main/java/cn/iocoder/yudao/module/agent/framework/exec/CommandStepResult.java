@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.agent.framework.exec;
 
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
+
 import java.util.List;
 
 /**
@@ -37,7 +39,8 @@ public record CommandStepResult(
      * 生成面向日志与报告的展示文本。
      */
     public String display() {
-        return executable + (arguments.isEmpty() ? "" : " " + String.join(" ", arguments));
+        String redactedArguments = String.join(" ", SecretRedactor.redactArguments(arguments, List.of()));
+        return executable + (redactedArguments.isEmpty() ? "" : " " + redactedArguments);
     }
 
 }

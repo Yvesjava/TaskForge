@@ -1,5 +1,7 @@
 package cn.iocoder.yudao.module.agent.framework.exec;
 
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
+
 import java.time.Duration;
 import java.util.List;
 
@@ -24,7 +26,8 @@ public record CommandSpec(String executable, List<String> arguments, Duration ti
      * 生成面向日志与报告的展示文本（不含敏感信息）。
      */
     public String display() {
-        return executable + (arguments.isEmpty() ? "" : " " + String.join(" ", arguments));
+        String redactedArguments = String.join(" ", SecretRedactor.redactArguments(arguments, List.of()));
+        return executable + (redactedArguments.isEmpty() ? "" : " " + redactedArguments);
     }
 
 }

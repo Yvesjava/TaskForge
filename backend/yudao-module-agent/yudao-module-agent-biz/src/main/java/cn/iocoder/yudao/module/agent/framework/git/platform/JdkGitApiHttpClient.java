@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.framework.git.platform;
 
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -61,7 +62,8 @@ public class JdkGitApiHttpClient implements GitApiHttpClient {
     }
 
     private String reasonOf(Exception e) {
-        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        return SecretRedactor.redact(message);
     }
 
 }

@@ -26,7 +26,7 @@ public final class NoticeSecretRedactor {
             // Authorization / Proxy-Authorization 头或键值对
             new RedactionRule(
                     Pattern.compile("(?i)(\\b(?:authorization|proxy-authorization)\\s*[:=]\\s*)"
-                            + "(?:bearer\\s+)?(?:\"[^\"]*\"|'[^']*'|[^\\s,;\"']+)"),
+                            + "(?:(?:bearer|basic|digest|token)\\s+)?(?:\"[^\"]*\"|'[^']*'|[^\\s,;\"']+)"),
                     "$1" + MASK),
             // 常见秘密键值对（password/token/api-key/private-key 等）
             new RedactionRule(

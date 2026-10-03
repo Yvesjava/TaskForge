@@ -12,6 +12,7 @@ import cn.iocoder.yudao.module.agent.enums.AgentTaskStatus;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitApiOperator;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitApiOperatorRegistry;
 import cn.iocoder.yudao.module.agent.framework.git.platform.GitMergeResult;
+import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachine;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskTransitionCommand;
 import org.springframework.stereotype.Service;
@@ -192,8 +193,9 @@ public class MergeService {
     }
 
     private String reasonOf(Exception ex) {
-        return ex.getMessage() == null || ex.getMessage().isBlank()
+        String message = ex.getMessage() == null || ex.getMessage().isBlank()
                 ? ex.getClass().getSimpleName() : ex.getMessage();
+        return SecretRedactor.redact(message);
     }
 
 }
