@@ -204,7 +204,7 @@ const logLines = computed(() => (log.value ? log.value.split('\n').length : 0))
 
 const hasDiff = computed(() => Boolean(diffStatText.value || changedFiles.value.length))
 
-const reportConclusion = computed(() => {
+const reportConclusion = computed<{ label: string; tagType: 'success' | 'danger' | 'info' }>(() => {
   const allPassed = testReport.value?.allPassed
   if (allPassed === true) {
     return { label: '已通过', tagType: 'success' }
