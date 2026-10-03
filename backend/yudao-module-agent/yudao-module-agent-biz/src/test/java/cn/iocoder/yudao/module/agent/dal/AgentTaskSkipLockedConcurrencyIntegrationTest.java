@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 在多个 Worker 并发抢占时不会重复消费，且会跳过被其他事务锁定的行而不阻塞。
  */
 @Testcontainers
-class AgentTaskSkipLockedConcurrencyTest {
+class AgentTaskSkipLockedConcurrencyIntegrationTest {
 
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>(DockerImageName.parse("mysql:8.4"))
