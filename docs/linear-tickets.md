@@ -1,6 +1,6 @@
 # TaskForge Linear Ticket 清单
 
-本文档把 [开发模块与子任务拆分](开发模块与子任务拆分.md) 的 **60 个一级子任务**（你提到的 ~57 实际为 60）翻译成 Linear ticket，供 Symphony 消费。
+本文档把 [开发模块与子任务拆分](开发模块与子任务拆分.md) 的 **60 个一级子任务**（你提到的 ~57 实际为 60）翻译成 Linear ticket，并在对应里程碑内补充核对后发现的 **4 个遗留缺口 ticket**，供 Symphony 消费。
 
 ## 使用约定
 
@@ -187,7 +187,7 @@
 
 - **Labels**: `M2`, `DOC`
 - **Depends on**: `TASK-DOC-02`, `TASK-DOC-03`
-- **Description**: 实现 `POST /api/v1/tasks/submit`、任务编号生成与文档版本保存，幂等键去重。
+- **Description**: 实现 `POST /admin-api/agent/task/submit`、任务编号生成与文档版本保存，幂等键去重。
 - **Validation**:
   ```bash
   curl -X POST http://localhost:48080/admin-api/agent/task/submit -H 'Content-Type: application/json' -d '{"document":"..."}'
@@ -259,6 +259,17 @@
   cd backend && mvn -pl yudao-module-agent/yudao-module-agent-biz -am test -Dtest='*IdempotencyTest'
   ```
   - [ ] 重试请求不产生重复副作用；错误不泄露凭证
+
+### TASK-TASK-06 重投支持克隆为全新任务编号
+
+- **Labels**: `M2`, `TASK`
+- **Depends on**: `TASK-TASK-02`
+- **Description**: 重投（re-enqueue）支持原位恢复为 `PENDING` 或克隆为全新任务编号；克隆时复制任务文档与项目引用、生成新 `task_no`、清空执行结果与耗时、执行代次归零，审计区分「重投」与「克隆重投」。
+- **Validation**:
+  ```bash
+  cd backend && mvn -pl yudao-module-agent/yudao-module-agent-biz -am test -Dtest='*ReEnqueue*'
+  ```
+  - [ ] `CANCELED` / `REJECTED` / `FAILED` 可克隆为新编号；克隆件与原任务独立；重复幂等键不重复克隆
 
 ### TASK-SCHED-01 短事务抢占
 
@@ -587,6 +598,18 @@
   ```
   - [ ] 页面操作复用幂等机制，反馈与状态刷新正确
 
+### TASK-WEB-06 任务结果读取接口（Diff/日志/报告/分支）
+
+- **Labels**: `M4`, `WEB`
+- **Depends on**: `TASK-WEB-04`, `TASK-EXEC-05`, `TASK-MERGE-03`
+- **Description**: 补齐 `GET /agent/task/{id}/diff`，聚合 `agent_task`、`agent_task_project`、`agent_project` 并解析 `.ai/workpad_summary.json`，返回前端 `AgentTaskDiffResp` 所需的分支信息、Diff 统计、变更文件、执行日志与测试报告。
+- **Validation**:
+  ```bash
+  cd backend && mvn -pl yudao-module-agent/yudao-module-agent-biz -am test -Dtest='*Diff*'
+  curl -s http://localhost:48080/admin-api/agent/task/{id}/diff
+  ```
+  - [ ] 返回字段与前端 `AgentTaskDiffResp` 一致；空 Diff / 日志 / 报告返回明确空值
+
 ---
 
 ## M5 安全与观测
@@ -693,6 +716,28 @@
   - 执行一次回滚演练并记录结果
   - [ ] 灰度 24 小时无重复提交、租约泄漏、残留进程
 
+### TASK-QA-06 24 小时连续灰度观察与归档
+
+- **Labels**: `M6`, `QA`
+- **Depends on**: `TASK-QA-01`~`TASK-QA-05`
+- **Description**: 跑满 `TASK-QA-05` 尚未完成的 24 小时单 Worker 灰度窗口，复核无重复提交、租约泄漏、残留进程与工作区，并回填 `docs/灰度与回滚演练.md`。
+- **Validation**:
+  ```bash
+  pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/qa-gray-drill.ps1 -SoakHours 24 -IntervalSeconds 60
+  ```
+  - [ ] 连续 24 小时全项通过；观察项无异常；结论回填至灰度报告
+
+### TASK-QA-07 前端全量类型检查与既有遗留复核
+
+- **Labels**: `M6`, `QA`
+- **Depends on**: `TASK-WEB-05`
+- **Description**: 执行前端全量 `ts:check` 与 `build:prod`，确认 agent 模块与全量均无类型错误，清理或跟踪既有无关模块类型错误（LZC-70）。
+- **Validation**:
+  ```bash
+  cd frontend && pnpm run ts:check && pnpm run build:prod
+  ```
+  - [ ] agent 模块类型检查 0 error，全量构建通过
+
 ---
 
 ## 汇总
@@ -700,9 +745,9 @@
 | 里程碑 | 模块 | 子任务数 |
 | --- | --- | --- |
 | M1 | BASE, DATA, PROJECT | 12 |
-| M2 | DOC, TASK, SCHED | 15 |
+| M2 | DOC, TASK, SCHED | 16 |
 | M3 | WORK, EXEC | 10 |
-| M4 | NOTICE, MERGE, WEB | 14 |
+| M4 | NOTICE, MERGE, WEB | 15 |
 | M5 | OPS | 4 |
-| M6 | QA | 5 |
-| **合计** | | **60** |
+| M6 | QA | 7 |
+| **合计** | | **64** |
