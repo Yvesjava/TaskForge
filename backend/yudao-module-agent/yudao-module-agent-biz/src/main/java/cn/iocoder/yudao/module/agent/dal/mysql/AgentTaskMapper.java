@@ -176,4 +176,19 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
      */
     int softDeleteIfCanceled(@Param("id") Long id);
 
+    /**
+     * 调度器指标：统计待调度队列长度（status = PENDING 且未软删除）
+     */
+    long countPendingTasks();
+
+    /**
+     * 调度器指标：统计运行中任务数（status = RUNNING 且未软删除）
+     */
+    long countRunningTasks();
+
+    /**
+     * 调度器指标：统计租约异常任务数（status = RUNNING 且 lease_until 已过期）
+     */
+    long countLeaseAnomalies(@Param("now") LocalDateTime now);
+
 }

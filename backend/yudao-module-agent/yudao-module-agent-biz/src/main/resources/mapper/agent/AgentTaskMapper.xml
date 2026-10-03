@@ -281,4 +281,29 @@
            AND deleted = 0
     </update>
 
+    <!-- 调度器指标：待调度队列长度（PENDING，未软删除） -->
+    <select id="countPendingTasks" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM agent_task
+         WHERE status = 'PENDING'
+           AND deleted = 0
+    </select>
+
+    <!-- 调度器指标：运行中任务数（RUNNING，未软删除） -->
+    <select id="countRunningTasks" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM agent_task
+         WHERE status = 'RUNNING'
+           AND deleted = 0
+    </select>
+
+    <!-- 调度器指标：租约异常任务数（RUNNING 且租约已过期） -->
+    <select id="countLeaseAnomalies" resultType="java.lang.Long">
+        SELECT COUNT(*)
+          FROM agent_task
+         WHERE status = 'RUNNING'
+           AND lease_until <![CDATA[ < ]]> #{now}
+           AND deleted = 0
+    </select>
+
 </mapper>
