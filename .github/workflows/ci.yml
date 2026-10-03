@@ -37,8 +37,9 @@ jobs:
           node-version: 20
           cache: 'pnpm'
           cache-dependency-path: frontend/pnpm-lock.yaml
-      - name: Build Frontend
+      - name: Lint & Build Frontend
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
+          pnpm lint
           pnpm run build:prod
