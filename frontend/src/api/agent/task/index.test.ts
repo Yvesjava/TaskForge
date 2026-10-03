@@ -11,7 +11,9 @@ const { requestMock, axiosMock } = vi.hoisted(() => ({
 }))
 
 vi.mock('@/config/axios', () => ({ default: requestMock }))
-vi.mock('@/config/axios/config', () => ({ config: { base_url: 'http://localhost:48080/admin-api' } }))
+vi.mock('@/config/axios/config', () => ({
+  config: { base_url: 'http://localhost:48080/admin-api' }
+}))
 vi.mock('@/utils/auth', () => ({
   getAccessToken: () => 'access-token',
   getTenantId: () => 1
@@ -20,11 +22,7 @@ vi.mock('@/utils', () => ({ generateUUID: () => 'idempotency-key-1' }))
 
 vi.mock('axios', () => ({ default: axiosMock }))
 
-import {
-  AGENT_TASK_DOC_VERSION_CONFLICT_CODE,
-  AgentTaskApi,
-  AgentTaskApiError
-} from './index'
+import { AGENT_TASK_DOC_VERSION_CONFLICT_CODE, AgentTaskApi, AgentTaskApiError } from './index'
 
 describe('AgentTaskApi', () => {
   beforeEach(() => {
@@ -68,11 +66,7 @@ describe('AgentTaskApi', () => {
       data: { code: 0, data: { taskId: 7, docVersion: 2 }, msg: '' }
     })
 
-    const result = await AgentTaskApi.updateTaskDocument(
-      7,
-      { docVersion: 1, document: 'doc' },
-      '1'
-    )
+    const result = await AgentTaskApi.updateTaskDocument(7, { docVersion: 1, document: 'doc' }, '1')
 
     expect(result).toEqual({ taskId: 7, docVersion: 2 })
     expect(axiosMock).toHaveBeenCalledWith(
