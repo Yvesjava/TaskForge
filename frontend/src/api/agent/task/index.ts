@@ -135,6 +135,28 @@ export const AgentTaskApi = {
     })
   },
 
+  // 验收通过
+  accept: async (id: number) => {
+    return await request.post({ url: `/agent/task/${id}/accept`, headers: idempotencyHeaders() })
+  },
+
+  // 打回任务
+  reject: async (id: number, feedback: string) => {
+    return await request.post({
+      url: `/agent/task/${id}/reject`,
+      data: { feedback },
+      headers: idempotencyHeaders()
+    })
+  },
+
+  // 合并冲突转人工处理
+  markMergeConflict: async (id: number) => {
+    return await request.post({
+      url: `/agent/task/${id}/merge-conflict`,
+      headers: idempotencyHeaders()
+    })
+  },
+
   // 软删除任务
   deleteTask: async (id: number) => {
     return await request.delete({ url: `/agent/task/${id}`, headers: idempotencyHeaders() })
