@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.agent.framework.exec.CodexRetryRunner;
 import cn.iocoder.yudao.module.agent.framework.exec.CodexRunner;
 import cn.iocoder.yudao.module.agent.framework.exec.CodexRunnerTestHelper;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGate;
+import cn.iocoder.yudao.module.agent.service.security.SecurityPolicy;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachineImpl;
 import cn.iocoder.yudao.module.agent.service.workspace.CompositeWorkspace;
 import cn.iocoder.yudao.module.agent.service.workspace.TaskBranchManager;
@@ -74,6 +75,9 @@ class AgentTaskTimeoutTest {
     private CommandGate commandGate;
 
     @Mock
+    private SecurityPolicy securityPolicy;
+
+    @Mock
     private AgentTaskMapper taskMapper;
 
     @Mock
@@ -91,7 +95,7 @@ class AgentTaskTimeoutTest {
         ReflectionTestUtils.setField(stateMachine, "operationLogMapper", operationLogMapper);
 
         AgentTaskExecutor executor = new AgentTaskExecutor(
-                worktreeManager, taskBranchManager, retryRunner, commandGate, stateMachine);
+                worktreeManager, taskBranchManager, retryRunner, commandGate, securityPolicy, stateMachine);
 
         CompositeWorkspace workspace = CompositeWorkspace.builder()
                 .taskNo(TASK_NO)
