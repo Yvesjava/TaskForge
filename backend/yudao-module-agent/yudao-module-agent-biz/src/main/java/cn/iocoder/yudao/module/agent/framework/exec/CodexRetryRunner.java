@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.framework.exec;
 
+import cn.iocoder.yudao.framework.common.util.monitor.TracerUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -65,9 +66,9 @@ public class CodexRetryRunner {
 
         while (!current.isSuccess() && !current.timedOut() && attempts.size() - 1 < maxRetries) {
             int attemptNumber = attempts.size() + 1;
-            log.info("[CodexRetryRunner] 自修复重试 attempt={}/{} retryCount={} previousReason={} previousDurationMs={}",
+            log.info("[CodexRetryRunner] 自修复重试 attempt={}/{} retryCount={} previousReason={} previousDurationMs={} traceId={}",
                     attemptNumber, maxRetries + 1, attemptNumber - 1,
-                    current.retryReason(), current.durationMillis());
+                    current.retryReason(), current.durationMillis(), TracerUtils.getTraceId());
             current = executeAttempt(request, attemptNumber);
             attempts.add(current);
         }

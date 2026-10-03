@@ -1,8 +1,10 @@
 package cn.iocoder.yudao.module.agent.framework.webhook;
 
+import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -23,11 +25,14 @@ public class WebhookSender {
     private final WebhookHttpClient client;
     private final int maxRetries;
     private final long retryBackoffMillis;
+    private final AgentObservability observability;
 
-    public WebhookSender(WebhookHttpClient client, WebhookProperties properties) {
+    public WebhookSender(WebhookHttpClient client, WebhookProperties properties,
+                         AgentObservability observability) {
         this.client = Objects.requireNonNull(client, "client 不能为空");
         this.maxRetries = Math.max(0, properties.getMaxRetries());
         this.retryBackoffMillis = Math.max(0, properties.getRetryBackoffMillis());
+        this.observability = Objects.requireNonNull(observability, "observability 不能为空");
     }
 
     /**
@@ -39,20 +44,37 @@ public class WebhookSender {
     public WebhookSendResult send(WebhookRequest request) {
         Objects.requireNonNull(request, "request 不能为空");
 
-        List<WebhookAttempt> attempts = new ArrayList<>();
-        WebhookAttempt current = execute(request, 1);
-        attempts.add(current);
-
-        while (current.response().isRetryable() && attempts.size() - 1 < maxRetries) {
-            sleepBackoff(attempts.size());
-            int attemptNumber = attempts.size() + 1;
-            log.info("[WebhookSender] 重试投递 attempt={}/{} previousReason={}",
-                    attemptNumber, maxRetries + 1, current.failureReason());
-            current = execute(request, attemptNumber);
+        AgentObservability.ExternalCallObservation observation =
+                observability.startExternalCall("webhook", hostOf(request.url()));
+        try {
+            List<WebhookAttempt> attempts = new ArrayList<>();
+            WebhookAttempt current = execute(request, 1);
             attempts.add(current);
-        }
 
-        return new WebhookSendResult(attempts, maxRetries);
+            while (current.response().isRetryable() && attempts.size() - 1 < maxRetries) {
+                sleepBackoff(attempts.size());
+                int attemptNumber = attempts.size() + 1;
+                log.info("[WebhookSender] 重试投递 attempt={}/{} previousReason={} traceId={}",
+                        attemptNumber, maxRetries + 1, current.failureReason(), observability.traceId());
+                current = execute(request, attemptNumber);
+                attempts.add(current);
+            }
+
+            WebhookSendResult result = new WebhookSendResult(attempts, maxRetries);
+            if (result.isSuccess()) {
+                observation.success();
+            } else {
+                WebhookAttempt last = result.lastAttempt();
+                if (last != null && last.timedOut()) {
+                    observation.timeout();
+                } else {
+                    observation.failure();
+                }
+            }
+            return result;
+        } finally {
+            observation.close();
+        }
     }
 
     private WebhookAttempt execute(WebhookRequest request, int attemptNumber) {
@@ -80,6 +102,15 @@ public class WebhookSender {
 
     private String reasonOf(Exception e) {
         return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+    }
+
+    private String hostOf(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            return host == null ? "unknown" : host;
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
 }

@@ -1,5 +1,6 @@
 package cn.iocoder.yudao.module.agent.framework.git.platform;
 
+import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
 import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,7 +25,10 @@ public class JdkGitApiHttpClient implements GitApiHttpClient {
 
     private final HttpClient httpClient;
 
-    public JdkGitApiHttpClient() {
+    private final AgentObservability observability;
+
+    public JdkGitApiHttpClient(AgentObservability observability) {
+        this.observability = observability;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -33,6 +37,8 @@ public class JdkGitApiHttpClient implements GitApiHttpClient {
 
     @Override
     public GitApiResponse exchange(GitApiRequest request) {
+        AgentObservability.ExternalCallObservation observation =
+                observability.startExternalCall("git_api", hostOf(request.url()));
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(request.url()))
                     .timeout(Duration.ofSeconds(30));
@@ -43,11 +49,17 @@ public class JdkGitApiHttpClient implements GitApiHttpClient {
             HttpRequest httpRequest = builder.method(request.method(), publisher).build();
             HttpResponse<String> response = httpClient.send(
                     httpRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-            log.info("[GitApiClient] {} {} -> {}", request.method(), redactUrl(request.url()), response.statusCode());
+            log.info("[GitApiClient] {} {} -> {} traceId={}",
+                    request.method(), redactUrl(request.url()), response.statusCode(), observability.traceId());
+            observation.success();
             return GitApiResponse.success(response.statusCode(), response.body());
         } catch (Exception e) {
-            log.warn("[GitApiClient] {} {} 失败: {}", request.method(), redactUrl(request.url()), reasonOf(e));
+            log.warn("[GitApiClient] {} {} 失败: {} traceId={}",
+                    request.method(), redactUrl(request.url()), reasonOf(e), observability.traceId());
+            observation.failure();
             return GitApiResponse.failure(reasonOf(e));
+        } finally {
+            observation.close();
         }
     }
 
@@ -64,6 +76,15 @@ public class JdkGitApiHttpClient implements GitApiHttpClient {
     private String reasonOf(Exception e) {
         String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
         return SecretRedactor.redact(message);
+    }
+
+    private String hostOf(String url) {
+        try {
+            URI uri = URI.create(url);
+            return uri.getHost() == null ? "unknown" : uri.getHost();
+        } catch (Exception e) {
+            return "unknown";
+        }
     }
 
 }

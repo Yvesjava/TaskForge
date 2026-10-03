@@ -9,6 +9,7 @@ import cn.iocoder.yudao.module.agent.framework.exec.CodexRunRequest;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGate;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandGateResult;
 import cn.iocoder.yudao.module.agent.framework.exec.CommandStepResult;
+import cn.iocoder.yudao.module.agent.framework.observability.AgentObservability;
 import cn.iocoder.yudao.module.agent.framework.secret.SecretRedactor;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskStateMachine;
 import cn.iocoder.yudao.module.agent.service.task.AgentTaskTransitionCommand;
@@ -50,16 +51,20 @@ public class AgentTaskExecutor {
 
     private final AgentTaskStateMachine stateMachine;
 
+    private final AgentObservability observability;
+
     public AgentTaskExecutor(WorktreeManager worktreeManager,
                              TaskBranchManager taskBranchManager,
                              CodexRetryRunner codexRunner,
                              CommandGate commandGate,
-                             AgentTaskStateMachine stateMachine) {
+                             AgentTaskStateMachine stateMachine,
+                             AgentObservability observability) {
         this.worktreeManager = Objects.requireNonNull(worktreeManager, "worktreeManager 不能为空");
         this.taskBranchManager = Objects.requireNonNull(taskBranchManager, "taskBranchManager 不能为空");
         this.codexRunner = Objects.requireNonNull(codexRunner, "codexRunner 不能为空");
         this.commandGate = Objects.requireNonNull(commandGate, "commandGate 不能为空");
         this.stateMachine = Objects.requireNonNull(stateMachine, "stateMachine 不能为空");
+        this.observability = Objects.requireNonNull(observability, "observability 不能为空");
     }
 
     /**
@@ -70,73 +75,89 @@ public class AgentTaskExecutor {
      */
     public ExecutionOutcome execute(ExecutionRequest request) {
         Objects.requireNonNull(request, "request 不能为空");
-        long started = System.currentTimeMillis();
-
-        CompositeWorkspace workspace = null;
-        CodexRetryResult codex = null;
-        CommandGateResult gate = null;
-        boolean timedOut = false;
-        Throwable error = null;
-
+        AgentObservability.TaskObservation observation = observability.startTask(
+                request.getTaskNo(), request.getWorkerId(), request.getGeneration(), "execute");
         try {
-            workspace = worktreeManager.createCompositeWorkspace(
-                    request.getTaskNo(), request.getTargetBranch(), request.getTaskDoc(), request.getProjects());
-        } catch (RuntimeException e) {
-            error = e;
-            log.error("[AgentTaskExecutor] 创建工作区失败 taskNo={}, workerId={}, generation={}",
-                    request.getTaskNo(), request.getWorkerId(), request.getGeneration(), e);
-        }
+            long started = System.currentTimeMillis();
 
-        if (workspace != null) {
+            CompositeWorkspace workspace = null;
+            CodexRetryResult codex = null;
+            CommandGateResult gate = null;
+            boolean timedOut = false;
+            Throwable error = null;
+
             try {
-                codex = codexRunner.run(CodexRunRequest.builder()
-                        .workingDirectory(workspace.getRoot())
-                        .executable(request.getExecutable())
-                        .arguments(request.getArguments())
-                        .timeout(request.getTimeout())
-                        .build());
-                timedOut = codex.lastAttempt() != null && codex.lastAttempt().timedOut();
-                if (codex.isSuccess()) {
-                    gate = commandGate.execute(request.getVerificationCommands(), workspace.getRoot());
-                }
+                workspace = worktreeManager.createCompositeWorkspace(
+                        request.getTaskNo(), request.getTargetBranch(), request.getTaskDoc(), request.getProjects());
             } catch (RuntimeException e) {
                 error = e;
-                log.error("[AgentTaskExecutor] Codex/验收执行异常 taskNo={}, workerId={}, generation={}",
-                        request.getTaskNo(), request.getWorkerId(), request.getGeneration(), e);
+                log.error("[AgentTaskExecutor] 创建工作区失败 taskNo={}, workerId={}, generation={}, traceId={}",
+                        request.getTaskNo(), request.getWorkerId(), request.getGeneration(),
+                        observability.traceId(), e);
             }
+
+            if (workspace != null) {
+                try {
+                    codex = codexRunner.run(CodexRunRequest.builder()
+                            .workingDirectory(workspace.getRoot())
+                            .executable(request.getExecutable())
+                            .arguments(request.getArguments())
+                            .timeout(request.getTimeout())
+                            .build());
+                    timedOut = codex.lastAttempt() != null && codex.lastAttempt().timedOut();
+                    if (codex.isSuccess()) {
+                        gate = commandGate.execute(request.getVerificationCommands(), workspace.getRoot());
+                    }
+                } catch (RuntimeException e) {
+                    error = e;
+                    log.error("[AgentTaskExecutor] Codex/验收执行异常 taskNo={}, workerId={}, generation={}, traceId={}",
+                            request.getTaskNo(), request.getWorkerId(), request.getGeneration(),
+                            observability.traceId(), e);
+                }
+            }
+
+            boolean success = error == null
+                    && codex != null && codex.isSuccess()
+                    && (gate == null || gate.isCommitAllowed());
+            AgentTaskAction action = success ? AgentTaskAction.SELF_VERIFY_PASS
+                    : timedOut ? AgentTaskAction.TIMEOUT : AgentTaskAction.ERROR;
+            if (success) {
+                observation.success();
+            } else if (timedOut) {
+                observation.timeout();
+            } else {
+                observation.error();
+            }
+
+            if (!success) {
+                cleanupQuietly(request);
+            }
+
+            String executionLog = renderExecutionLog(codex, gate, error);
+            int retryTimes = codex == null ? 0 : codex.retryCount();
+            long costMs = System.currentTimeMillis() - started;
+
+            AgentTaskStatus status = stateMachine.transition(AgentTaskTransitionCommand.builder()
+                    .taskId(request.getTaskId())
+                    .taskNo(request.getTaskNo())
+                    .action(action)
+                    .fromStatus(AgentTaskStatus.RUNNING)
+                    .workerId(request.getWorkerId())
+                    .generation(request.getGeneration())
+                    .executionLog(executionLog)
+                    .retryTimes(retryTimes)
+                    .costMs(costMs)
+                    .diffStat(null)
+                    .workspacePath(success && workspace != null ? workspace.getRoot().toString() : null)
+                    .build());
+
+            log.info("[AgentTaskExecutor] 执行完成 taskNo={}, workerId={}, generation={}, traceId={}, action={}, status={}, timedOut={}, retryTimes={}, costMs={}",
+                    request.getTaskNo(), request.getWorkerId(), request.getGeneration(),
+                    observability.traceId(), action.getValue(), status.getValue(), timedOut, retryTimes, costMs);
+            return new ExecutionOutcome(status, timedOut, retryTimes, costMs, executionLog);
+        } finally {
+            observation.close();
         }
-
-        boolean success = error == null
-                && codex != null && codex.isSuccess()
-                && (gate == null || gate.isCommitAllowed());
-        AgentTaskAction action = success ? AgentTaskAction.SELF_VERIFY_PASS
-                : timedOut ? AgentTaskAction.TIMEOUT : AgentTaskAction.ERROR;
-
-        if (!success) {
-            cleanupQuietly(request);
-        }
-
-        String executionLog = renderExecutionLog(codex, gate, error);
-        int retryTimes = codex == null ? 0 : codex.retryCount();
-        long costMs = System.currentTimeMillis() - started;
-
-        AgentTaskStatus status = stateMachine.transition(AgentTaskTransitionCommand.builder()
-                .taskId(request.getTaskId())
-                .taskNo(request.getTaskNo())
-                .action(action)
-                .fromStatus(AgentTaskStatus.RUNNING)
-                .workerId(request.getWorkerId())
-                .generation(request.getGeneration())
-                .executionLog(executionLog)
-                .retryTimes(retryTimes)
-                .costMs(costMs)
-                .diffStat(null)
-                .workspacePath(success && workspace != null ? workspace.getRoot().toString() : null)
-                .build());
-
-        log.info("[AgentTaskExecutor] 执行完成 taskNo={}, action={}, status={}, timedOut={}, retryTimes={}, costMs={}",
-                request.getTaskNo(), action.getValue(), status.getValue(), timedOut, retryTimes, costMs);
-        return new ExecutionOutcome(status, timedOut, retryTimes, costMs, executionLog);
     }
 
     /**
@@ -147,7 +168,8 @@ public class AgentTaskExecutor {
         try {
             worktreeManager.destroyCompositeWorkspaceIfPresent(request.getTaskNo());
         } catch (RuntimeException e) {
-            log.error("[AgentTaskExecutor] 失败清理工作区异常 taskNo={}", request.getTaskNo(), e);
+            log.error("[AgentTaskExecutor] 失败清理工作区异常 taskNo={}, traceId={}",
+                    request.getTaskNo(), observability.traceId(), e);
         }
 
         if (request.getTargetBranch() == null || request.getTargetBranch().isBlank()) {
@@ -157,8 +179,8 @@ public class AgentTaskExecutor {
             try {
                 taskBranchManager.deleteFeatureBranch(project.getProjectCode(), request.getTargetBranch());
             } catch (RuntimeException e) {
-                log.error("[AgentTaskExecutor] 失败清理分支异常 taskNo={}, project={}",
-                        request.getTaskNo(), project.getProjectCode(), e);
+                log.error("[AgentTaskExecutor] 失败清理分支异常 taskNo={}, project={}, traceId={}",
+                        request.getTaskNo(), project.getProjectCode(), observability.traceId(), e);
             }
         }
     }
