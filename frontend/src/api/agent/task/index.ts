@@ -70,6 +70,47 @@ export interface AgentTaskResetResult {
   status?: string
 }
 
+/** 任务分支信息（对应后端 Diff 查看接口的 branch 条目） */
+export interface AgentTaskBranchInfo {
+  projectCode?: string
+  projectName?: string
+  baseBranch?: string
+  featureBranch?: string
+  branchUrl?: string
+  subDir?: string
+  mergeStatus?: string
+  commitHash?: string
+}
+
+/** 测试报告（对应 Worker 写入的 .ai/workpad_summary.json） */
+export interface AgentTaskTestReport {
+  allPassed?: boolean
+  testsExecuted?: string[]
+  modifiedFiles?: string[]
+  notes?: string
+}
+
+/** Diff/日志/测试报告/分支信息查看响应 */
+export interface AgentTaskDiffResp {
+  taskId?: number
+  taskNo?: string
+  title?: string
+  status?: string
+  targetBranch?: string
+  retryTimes?: number
+  costMs?: number
+  startedTime?: string
+  finishedTime?: string
+  executionGeneration?: number
+  branches?: AgentTaskBranchInfo[]
+  diffStat?: string
+  changedFiles?: string[]
+  executionLog?: string
+  logTruncated?: boolean
+  originalLogPath?: string
+  testReport?: AgentTaskTestReport
+}
+
 /** 业务错误：保留后端返回的错误码，便于前端识别版本冲突等场景 */
 export class AgentTaskApiError extends Error {
   code?: number
@@ -138,6 +179,11 @@ export const AgentTaskApi = {
   // 软删除任务
   deleteTask: async (id: number) => {
     return await request.delete({ url: `/agent/task/${id}`, headers: idempotencyHeaders() })
+  },
+
+  // 查询任务 Diff/日志/测试报告/分支信息
+  getTaskDiff: async (id: number): Promise<AgentTaskDiffResp> => {
+    return await request.get({ url: `/agent/task/${id}/diff` })
   },
 
   /**

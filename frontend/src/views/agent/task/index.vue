@@ -91,6 +91,15 @@
       <el-table-column label="操作" align="center" width="220px" fixed="right">
         <template #default="scope">
           <el-button
+            v-if="DIFF_VIEWABLE_STATUSES.includes(scope.row.status)"
+            link
+            type="primary"
+            @click="handleViewDiff(scope.row)"
+            v-hasPermi="['agent:task:query']"
+          >
+            查看结果
+          </el-button>
+          <el-button
             v-if="scope.row.status === 'PENDING'"
             link
             type="primary"
@@ -155,11 +164,14 @@
       @pagination="getList"
     />
   </ContentWrap>
+
+  <TaskDiffViewerDialog ref="diffViewerRef" />
 </template>
 
 <script setup lang="ts">
 import { dateFormatter } from '@/utils/formatTime'
 import { AgentTask, AgentTaskApi } from '@/api/agent/task'
+import TaskDiffViewerDialog from './components/TaskDiffViewerDialog.vue'
 import {
   AGENT_TASK_STATUS_OPTIONS,
   agentTaskStatusLabel,
@@ -172,9 +184,20 @@ defineOptions({ name: 'AgentTask' })
 
 const message = useMessage() // 消息弹窗
 
+/** 允许查看执行结果的任务状态：待验收及终态 */
+const DIFF_VIEWABLE_STATUSES = [
+  'WAITING_ACCEPTANCE',
+  'ACCEPTED',
+  'COMPLETED',
+  'FAILED',
+  'REJECTED',
+  'MERGE_CONFLICT_PENDING_MANUAL'
+]
+
 const loading = ref(true) // 列表的加载中
 const list = ref<AgentTask[]>([]) // 列表的数据
 const total = ref(0) // 列表的总条数
+const diffViewerRef = ref() // Diff/日志/报告/分支弹窗
 const queryParams = reactive({
   pageNo: 1,
   pageSize: 10,
@@ -207,6 +230,11 @@ const handleQuery = () => {
 const resetQuery = () => {
   queryFormRef.value.resetFields()
   handleQuery()
+}
+
+/** 查看任务 Diff/日志/测试报告/分支信息 */
+const handleViewDiff = (row: AgentTask) => {
+  diffViewerRef.value?.open(row)
 }
 
 /** 暂停任务 */
