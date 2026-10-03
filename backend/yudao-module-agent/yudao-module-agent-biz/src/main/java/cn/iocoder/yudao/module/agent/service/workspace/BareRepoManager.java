@@ -11,13 +11,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.BARE_REPO_BRANCH_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.BARE_REPO_DELETE_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.BARE_REPO_FETCH_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.BARE_REPO_INIT_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.BARE_REPO_PROJECT_CODE_INVALID;
@@ -122,6 +125,31 @@ public class BareRepoManager {
         return bareRepoRoot.resolve(projectCode + ".git");
     }
 
+    /**
+     * 幂等删除指定项目的裸仓库缓存。
+     *
+     * <p>合并收尾时释放项目级裸仓库缓存，缓存不存在时直接返回，重复调用不会抛
+     * “已删除”错误。下次使用同一项目时会重新执行 {@code git clone --bare}。</p>
+     *
+     * @param projectCode 项目代号
+     */
+    public void deleteRepositoryIfPresent(String projectCode) {
+        validateProjectCode(projectCode);
+        ReentrantLock lock = lockFor(projectCode);
+        lock.lock();
+        try {
+            Path repoDir = repositoryPath(projectCode);
+            if (!Files.isDirectory(repoDir)) {
+                return;
+            }
+            deleteRecursively(repoDir);
+        } catch (IOException e) {
+            throw exception(BARE_REPO_DELETE_FAILED, projectCode, GitErrorNormalizer.detail(e));
+        } finally {
+            lock.unlock();
+        }
+    }
+
     private Path ensureRepositoryLocked(String projectCode, String gitUrl) {
         Path repoDir = repositoryPath(projectCode);
         if (isBareRepository(repoDir)) {
@@ -182,6 +210,25 @@ public class BareRepoManager {
                 && Files.isDirectory(dir.resolve("objects"))
                 && Files.isDirectory(dir.resolve("refs"))
                 && !Files.exists(dir.resolve(".git"));
+    }
+
+    private void deleteRecursively(Path path) throws IOException {
+        if (path == null || !Files.exists(path)) {
+            return;
+        }
+        if (Files.isSymbolicLink(path)) {
+            Files.deleteIfExists(path);
+            return;
+        }
+        try (Stream<Path> stream = Files.walk(path)) {
+            stream.sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (IOException ignored) {
+                    // 单个文件删除失败不影响整体清理
+                }
+            });
+        }
     }
 
 }
