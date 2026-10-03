@@ -2,15 +2,21 @@ package cn.iocoder.yudao.module.agent.service.task;
 
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetRespVO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
+import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
+import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskOperationLogMapper;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskAction;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskStatus;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
+import java.util.regex.Pattern;
+
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_CANNOT_RESET_NOT_PAUSED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_NOT_FOUND;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED;
 
 /**
  * 任务重置服务实现
@@ -30,8 +36,13 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_NOT_FO
 @Service
 public class AgentTaskResetServiceImpl implements AgentTaskResetService {
 
+    private static final Pattern IDEMPOTENCY_KEY_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{16,128}$");
+
     @Resource
     private AgentTaskMapper taskMapper;
+
+    @Resource
+    private AgentTaskOperationLogMapper operationLogMapper;
 
     @Resource
     private AgentTaskStateMachine stateMachine;
@@ -40,7 +51,18 @@ public class AgentTaskResetServiceImpl implements AgentTaskResetService {
     private ResetCleanupDelegate cleanupDelegate;
 
     @Override
-    public AgentTaskResetRespVO reset(Long taskId, boolean keepPaused) {
+    public AgentTaskResetRespVO reset(Long taskId, boolean keepPaused, String idempotencyKey) {
+        validateIdempotencyKey(idempotencyKey);
+
+        // 幂等重放：同一任务 + 同一幂等键已执行过，直接返回当前结果
+        AgentTaskOperationLogDO existingLog = operationLogMapper.selectByTaskIdAndRequestKey(taskId, idempotencyKey);
+        if (existingLog != null) {
+            AgentTaskDO existingTask = taskMapper.selectById(taskId);
+            if (existingTask != null) {
+                return buildResponse(existingTask, existingTask.getStatus());
+            }
+        }
+
         AgentTaskDO task = taskMapper.selectById(taskId);
         if (task == null) {
             throw exception(TASK_NOT_FOUND);
@@ -55,6 +77,7 @@ public class AgentTaskResetServiceImpl implements AgentTaskResetService {
                 .taskNo(task.getTaskNo())
                 .action(AgentTaskAction.RESET)
                 .fromStatus(AgentTaskStatus.PAUSED)
+                .requestIdempotencyKey(idempotencyKey)
                 .build());
 
         // 2. 事务外执行幂等外部清理；失败保留 RESETTING，由补偿任务继续
@@ -70,11 +93,24 @@ public class AgentTaskResetServiceImpl implements AgentTaskResetService {
                 .targetStatus(finalStatus)
                 .build());
 
+        return buildResponse(task, finalStatus.getValue());
+    }
+
+    private AgentTaskResetRespVO buildResponse(AgentTaskDO task, String status) {
         AgentTaskResetRespVO response = new AgentTaskResetRespVO();
-        response.setTaskId(taskId);
+        response.setTaskId(task.getId());
         response.setTaskNo(task.getTaskNo());
-        response.setStatus(finalStatus.getValue());
+        response.setStatus(status);
         return response;
+    }
+
+    private void validateIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw exception(TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED);
+        }
+        if (!IDEMPOTENCY_KEY_PATTERN.matcher(idempotencyKey).matches()) {
+            throw exception(TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID);
+        }
     }
 
 }
