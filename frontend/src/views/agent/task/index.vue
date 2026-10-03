@@ -88,7 +88,7 @@
         :formatter="dateFormatter"
         width="170px"
       />
-      <el-table-column label="操作" align="center" width="220px" fixed="right">
+      <el-table-column label="操作" align="center" width="260px" fixed="right">
         <template #default="scope">
           <el-button
             v-if="DIFF_VIEWABLE_STATUSES.includes(scope.row.status)"
@@ -143,6 +143,33 @@
             v-hasPermi="['agent:task:re-enqueue']"
           >
             重投
+          </el-button>
+          <el-button
+            v-if="scope.row.status === 'WAITING_ACCEPTANCE'"
+            link
+            type="success"
+            @click="handleAccept(scope.row)"
+            v-hasPermi="['agent:task:accept']"
+          >
+            确认验收
+          </el-button>
+          <el-button
+            v-if="scope.row.status === 'WAITING_ACCEPTANCE'"
+            link
+            type="warning"
+            @click="handleReject(scope.row)"
+            v-hasPermi="['agent:task:reject']"
+          >
+            打回
+          </el-button>
+          <el-button
+            v-if="scope.row.status === 'ACCEPTED'"
+            link
+            type="danger"
+            @click="handleMarkMergeConflict(scope.row)"
+            v-hasPermi="['agent:task:merge-conflict']"
+          >
+            合并冲突
           </el-button>
           <el-button
             v-if="scope.row.status === 'CANCELED'"
@@ -283,6 +310,45 @@ const handleReEnqueue = async (row: AgentTask) => {
     await message.confirm(`确认重新入队任务「${row.taskNo}」吗？`)
     await AgentTaskApi.reEnqueue(row.id!)
     message.success('重投成功')
+    await getList()
+  } catch {}
+}
+
+/** 验收通过 */
+const handleAccept = async (row: AgentTask) => {
+  try {
+    await message.confirm(`确认验收任务「${row.taskNo}」并进入合并流程吗？`)
+    await AgentTaskApi.accept(row.id!)
+    message.success('验收成功')
+    await getList()
+  } catch {}
+}
+
+/** 打回任务 */
+const handleReject = async (row: AgentTask) => {
+  try {
+    const { value } = await message.prompt('请输入打回反馈', '打回任务')
+    const feedback = (value || '').trim()
+    if (!feedback) {
+      message.error('打回反馈不能为空')
+      return
+    }
+    if (feedback.length > 2000) {
+      message.error('打回反馈长度不能超过 2000 个字符')
+      return
+    }
+    await AgentTaskApi.reject(row.id!, feedback)
+    message.success('打回成功')
+    await getList()
+  } catch {}
+}
+
+/** 合并冲突转人工处理 */
+const handleMarkMergeConflict = async (row: AgentTask) => {
+  try {
+    await message.confirm(`确认将任务「${row.taskNo}」标记为合并冲突待处理吗？`)
+    await AgentTaskApi.markMergeConflict(row.id!)
+    message.success('已标记合并冲突')
     await getList()
   } catch {}
 }
