@@ -12,4 +12,15 @@
          ORDER BY id ASC
     </select>
 
+    <!-- 回写单个仓库合并结果：更新 merge_status 与最终提交哈希 -->
+    <update id="updateMergeResult">
+        UPDATE agent_task_project
+           SET merge_status = #{mergeStatus},
+               commit_hash = #{commitHash},
+               update_time = NOW()
+         WHERE task_id = #{taskId}
+           AND project_code = #{projectCode}
+           AND deleted = 0
+    </update>
+
 </mapper>

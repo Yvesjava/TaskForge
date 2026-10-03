@@ -82,4 +82,7 @@ public interface ErrorCodeConstants {
     ErrorCode TASK_REJECT_FEEDBACK_REQUIRED = new ErrorCode(1_061_003_013, "打回反馈不能为空");
     ErrorCode TASK_REJECT_FEEDBACK_INVALID = new ErrorCode(1_061_003_014, "打回反馈长度不能超过 2000 个字符");
 
+    // ========== 合并模块 1-061-004-000 ==========
+    ErrorCode MERGE_TASK_STATE_INVALID = new ErrorCode(1_061_004_000, "任务当前状态不允许合并：{}");
+
 }

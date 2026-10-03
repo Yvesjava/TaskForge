@@ -34,4 +34,12 @@ public interface AgentTaskProjectMapper extends BaseMapperX<AgentTaskProjectDO> 
      */
     List<AgentTaskProjectDO> selectListByTaskId(@Param("taskId") Long taskId);
 
+    /**
+     * 回写单个仓库的合并结果：更新 merge_status 与最终提交哈希。
+     */
+    int updateMergeResult(@Param("taskId") Long taskId,
+                          @Param("projectCode") String projectCode,
+                          @Param("mergeStatus") String mergeStatus,
+                          @Param("commitHash") String commitHash);
+
 }
