@@ -129,7 +129,8 @@ class WorktreeCleanupTest {
 
     private WorktreeManager manager(Path workspaceRoot, Path bareRoot, GitCommandRunner runner) {
         AgentWorkspaceProperties properties = properties(workspaceRoot, bareRoot);
-        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), runner);
+        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), runner,
+                new WorkflowInjector());
     }
 
     private AgentWorkspaceProperties properties(Path workspaceRoot, Path bareRoot) {

@@ -8,7 +8,6 @@ import cn.iocoder.yudao.module.agent.framework.workspace.git.GitRefs;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,7 +34,6 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SU
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SUB_DIR_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SYMLINK_NOT_ALLOWED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_TASK_NO_INVALID;
-import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_WRITE_TASK_DOC_FAILED;
 
 /**
  * 多仓聚合工作区管理器
@@ -80,16 +78,19 @@ public class WorktreeManager {
 
     private final GitCommandRunner gitRunner;
 
+    private final WorkflowInjector workflowInjector;
+
     /**
      * 按任务编号隔离的工作区创建锁，防止同一任务并发创建产生冲突挂载
      */
     private final ConcurrentMap<String, ReentrantLock> taskLocks = new ConcurrentHashMap<>();
 
     public WorktreeManager(AgentWorkspaceProperties properties, BareRepoManager bareRepoManager,
-                           GitCommandRunner gitRunner) {
+                           GitCommandRunner gitRunner, WorkflowInjector workflowInjector) {
         this.workspaceRoot = Paths.get(properties.getWorkspaceRoot()).toAbsolutePath().normalize();
         this.bareRepoManager = bareRepoManager;
         this.gitRunner = gitRunner;
+        this.workflowInjector = workflowInjector;
     }
 
     /**
@@ -127,13 +128,13 @@ public class WorktreeManager {
         rejectSymlinkEscape(root);
 
         List<MountedProject> mounted = new ArrayList<>();
-        boolean taskDocWritten = false;
+        boolean aiArtifactsWritten = false;
         try {
             for (WorkspaceProject project : projects) {
                 mounted.add(mount(root, project, targetBranch));
             }
-            writeTaskDoc(root, taskDoc);
-            taskDocWritten = true;
+            aiArtifactsWritten = true;
+            workflowInjector.writeArtifacts(root, taskDoc);
             return CompositeWorkspace.builder()
                     .taskNo(taskNo)
                     .targetBranch(targetBranch)
@@ -141,7 +142,7 @@ public class WorktreeManager {
                     .projects(List.copyOf(mounted))
                     .build();
         } catch (RuntimeException e) {
-            rollback(mounted, root, taskDocWritten);
+            rollback(mounted, root, aiArtifactsWritten);
             throw e;
         }
     }
@@ -251,17 +252,7 @@ public class WorktreeManager {
                 .build();
     }
 
-    private void writeTaskDoc(Path root, String taskDoc) {
-        try {
-            Path aiDir = root.resolve(".ai");
-            Files.createDirectories(aiDir);
-            Files.writeString(aiDir.resolve("task.md"), taskDoc == null ? "" : taskDoc, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw exception(WORKTREE_WRITE_TASK_DOC_FAILED, GitErrorNormalizer.detail(e));
-        }
-    }
-
-    private void rollback(List<MountedProject> mounted, Path root, boolean taskDocWritten) {
+    private void rollback(List<MountedProject> mounted, Path root, boolean aiArtifactsWritten) {
         for (int i = mounted.size() - 1; i >= 0; i--) {
             MountedProject project = mounted.get(i);
             Path bareRepo = bareRepoManager.repositoryPath(project.getProjectCode());
@@ -277,7 +268,7 @@ public class WorktreeManager {
             }
         }
         try {
-            if (taskDocWritten) {
+            if (aiArtifactsWritten) {
                 deleteRecursively(root.resolve(".ai"));
             }
             // 仅在聚合根目录为空时删除，避免误删先前已存在的目录

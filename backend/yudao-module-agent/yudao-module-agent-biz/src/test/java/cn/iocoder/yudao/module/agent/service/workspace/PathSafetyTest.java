@@ -136,7 +136,8 @@ class PathSafetyTest {
         initSourceRepo(source, "file.txt", "v1\n");
         BlockingWorktreeRunner runner = new BlockingWorktreeRunner();
         AgentWorkspaceProperties properties = properties(tempDir.resolve("workspace"), tempDir.resolve("bare"));
-        WorktreeManager manager = new WorktreeManager(properties, new BareRepoManager(properties, runner), runner);
+        WorktreeManager manager = new WorktreeManager(properties, new BareRepoManager(properties, runner), runner,
+                new WorkflowInjector());
 
         List<WorkspaceProject> projects = List.of(
                 WorkspaceProject.builder().projectCode("backend-service")
@@ -201,7 +202,8 @@ class PathSafetyTest {
 
     private WorktreeManager manager(Path workspaceRoot, Path bareRoot) {
         AgentWorkspaceProperties properties = properties(workspaceRoot, bareRoot);
-        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), gitRunner);
+        return new WorktreeManager(properties, new BareRepoManager(properties, gitRunner), gitRunner,
+                new WorkflowInjector());
     }
 
     private AgentWorkspaceProperties properties(Path workspaceRoot, Path bareRoot) {
