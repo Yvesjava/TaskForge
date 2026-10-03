@@ -108,6 +108,37 @@
            AND deleted = 0
     </update>
 
+    <!-- 暂停：PENDING -> PAUSED，阻止调度器继续消费 -->
+    <update id="pauseIfPending">
+        UPDATE agent_task
+           SET status = 'PAUSED',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'PENDING'
+           AND deleted = 0
+    </update>
+
+    <!-- 恢复：PAUSED -> PENDING，回到待调度队列 -->
+    <update id="resumeIfPaused">
+        UPDATE agent_task
+           SET status = 'PENDING',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'PAUSED'
+           AND deleted = 0
+    </update>
+
+    <!-- 取消：PENDING/PAUSED -> CANCELED，写入取消原因 -->
+    <update id="cancelIfPendingOrPaused">
+        UPDATE agent_task
+           SET status = 'CANCELED',
+               cancel_reason = #{cancelReason},
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status IN ('PENDING', 'PAUSED')
+           AND deleted = 0
+    </update>
+
     <!-- 文档编辑：PAUSED + docVersion 乐观锁条件更新，成功则版本 +1 -->
     <update id="updateDocumentIfVersionMatches">
         UPDATE agent_task
@@ -120,6 +151,104 @@
          WHERE id = #{id}
            AND status = 'PAUSED'
            AND doc_version = #{docVersion}
+           AND deleted = 0
+    </update>
+
+    <!-- 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约 -->
+    <update id="markSelfVerifiedIfRunning">
+        UPDATE agent_task
+           SET status = 'WAITING_ACCEPTANCE',
+               lease_until = NULL,
+               heartbeat_time = NULL,
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'RUNNING'
+           AND worker_id = #{workerId}
+           AND execution_generation = #{generation}
+           AND deleted = 0
+    </update>
+
+    <!-- 执行失败/超时：RUNNING -> FAILED，释放租约并保留日志 -->
+    <update id="markFailedIfRunning">
+        UPDATE agent_task
+           SET status = 'FAILED',
+               worker_id = NULL,
+               lease_until = NULL,
+               heartbeat_time = NULL,
+               finished_time = NOW(),
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'RUNNING'
+           AND worker_id = #{workerId}
+           AND execution_generation = #{generation}
+           AND deleted = 0
+    </update>
+
+    <!-- 验收通过：WAITING_ACCEPTANCE -> ACCEPTED -->
+    <update id="acceptIfWaitingAcceptance">
+        UPDATE agent_task
+           SET status = 'ACCEPTED',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'WAITING_ACCEPTANCE'
+           AND deleted = 0
+    </update>
+
+    <!-- 打回：WAITING_ACCEPTANCE -> REJECTED -->
+    <update id="rejectIfWaitingAcceptance">
+        UPDATE agent_task
+           SET status = 'REJECTED',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'WAITING_ACCEPTANCE'
+           AND deleted = 0
+    </update>
+
+    <!-- 合并成功：ACCEPTED -> COMPLETED -->
+    <update id="completeIfAccepted">
+        UPDATE agent_task
+           SET status = 'COMPLETED',
+               finished_time = NOW(),
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'ACCEPTED'
+           AND deleted = 0
+    </update>
+
+    <!-- 合并冲突：ACCEPTED -> MERGE_CONFLICT_PENDING_MANUAL -->
+    <update id="markMergeConflictIfAccepted">
+        UPDATE agent_task
+           SET status = 'MERGE_CONFLICT_PENDING_MANUAL',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'ACCEPTED'
+           AND deleted = 0
+    </update>
+
+    <!-- 重新入队：REJECTED/FAILED/CANCELED -> PENDING，生成新的执行代次 -->
+    <update id="reEnqueueIfEnded">
+        UPDATE agent_task
+           SET status = 'PENDING',
+               worker_id = NULL,
+               lease_until = NULL,
+               heartbeat_time = NULL,
+               cancel_reason = NULL,
+               execution_generation = execution_generation + 1,
+               retry_times = retry_times + 1,
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status IN ('REJECTED', 'FAILED', 'CANCELED')
+           AND deleted = 0
+    </update>
+
+    <!-- 软删除：CANCELED -> DELETED（deleted=1） -->
+    <update id="softDeleteIfCanceled">
+        UPDATE agent_task
+           SET status = 'DELETED',
+               deleted = 1,
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'CANCELED'
            AND deleted = 0
     </update>
 
