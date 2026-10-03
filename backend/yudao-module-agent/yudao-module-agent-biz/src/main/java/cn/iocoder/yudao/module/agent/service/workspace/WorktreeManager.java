@@ -17,6 +17,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -26,9 +29,11 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_CR
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_GIT_URL_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_PROJECTS_EMPTY;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_PROJECT_CODE_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_RESIDUE_SCAN_FAILED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_ROOT_ESCAPE;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SUB_DIR_CONFLICT;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SUB_DIR_INVALID;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_SYMLINK_NOT_ALLOWED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_TASK_NO_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.WORKTREE_WRITE_TASK_DOC_FAILED;
 
@@ -75,6 +80,11 @@ public class WorktreeManager {
 
     private final GitCommandRunner gitRunner;
 
+    /**
+     * 按任务编号隔离的工作区创建锁，防止同一任务并发创建产生冲突挂载
+     */
+    private final ConcurrentMap<String, ReentrantLock> taskLocks = new ConcurrentHashMap<>();
+
     public WorktreeManager(AgentWorkspaceProperties properties, BareRepoManager bareRepoManager,
                            GitCommandRunner gitRunner) {
         this.workspaceRoot = Paths.get(properties.getWorkspaceRoot()).toAbsolutePath().normalize();
@@ -93,21 +103,33 @@ public class WorktreeManager {
      */
     public CompositeWorkspace createCompositeWorkspace(String taskNo, String targetBranch, String taskDoc,
                                                        List<WorkspaceProject> projects) {
-        validateTaskNo(taskNo);
+        String normalizedTaskNo = normalizeTaskNo(taskNo);
         validateBranch(targetBranch);
         List<WorkspaceProject> normalizedProjects = validateProjects(projects);
 
+        ReentrantLock lock = lockForTask(normalizedTaskNo);
+        lock.lock();
+        try {
+            return createCompositeWorkspaceLocked(normalizedTaskNo, targetBranch, taskDoc, normalizedProjects);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private CompositeWorkspace createCompositeWorkspaceLocked(String taskNo, String targetBranch, String taskDoc,
+                                                              List<WorkspaceProject> projects) {
         Path root = aggregateRoot(taskNo);
         try {
             Files.createDirectories(root);
         } catch (IOException e) {
             throw exception(WORKTREE_CREATE_FAILED, "-", "-", "创建聚合根目录失败：" + GitErrorNormalizer.detail(e));
         }
+        rejectSymlinkEscape(root);
 
         List<MountedProject> mounted = new ArrayList<>();
         boolean taskDocWritten = false;
         try {
-            for (WorkspaceProject project : normalizedProjects) {
+            for (WorkspaceProject project : projects) {
                 mounted.add(mount(root, project, targetBranch));
             }
             writeTaskDoc(root, taskDoc);
@@ -131,8 +153,7 @@ public class WorktreeManager {
      * @return 聚合根目录绝对路径
      */
     public Path workspacePath(String taskNo) {
-        validateTaskNo(taskNo);
-        return aggregateRoot(taskNo);
+        return aggregateRoot(normalizeTaskNo(taskNo));
     }
 
     /**
@@ -146,8 +167,8 @@ public class WorktreeManager {
      * @param taskNo 任务唯一编号
      */
     public void destroyCompositeWorkspaceIfPresent(String taskNo) {
-        validateTaskNo(taskNo);
-        Path root = aggregateRoot(taskNo);
+        String normalizedTaskNo = normalizeTaskNo(taskNo);
+        Path root = aggregateRoot(normalizedTaskNo);
         if (!Files.isDirectory(root)) {
             return;
         }
@@ -170,18 +191,42 @@ public class WorktreeManager {
             }
         } catch (IOException e) {
             throw exception(WORKTREE_CLEANUP_FAILED,
-                    GitErrorNormalizer.normalize(e, taskNo, "枚举聚合目录"));
+                    GitErrorNormalizer.normalize(e, normalizedTaskNo, "枚举聚合目录"));
         }
 
         try {
             deleteRecursively(root);
         } catch (IOException e) {
             throw exception(WORKTREE_CLEANUP_FAILED,
-                    GitErrorNormalizer.normalize(e, taskNo, "物理删除"));
+                    GitErrorNormalizer.normalize(e, normalizedTaskNo, "物理删除"));
         }
 
         for (Path bareRepo : bareRepos) {
             pruneWorktree(bareRepo, projectCodeOf(bareRepo));
+        }
+    }
+
+    /**
+     * 检测工作区根目录下残留的聚合目录。
+     *
+     * <p>异常退出、回滚失败或进程被强杀时可能留下 {@code dirA-{taskNo}} 目录。
+     * 该方法返回所有匹配前缀的目录或符号链接，交由上层补偿清理流程处理。
+     *
+     * @return 残留工作区绝对路径列表（按路径排序，不存在工作区根目录时为空）
+     */
+    public List<Path> detectResidue() {
+        if (!Files.isDirectory(workspaceRoot)) {
+            return List.of();
+        }
+        try (Stream<Path> stream = Files.list(workspaceRoot)) {
+            return stream
+                    .map(path -> path.toAbsolutePath().normalize())
+                    .filter(path -> path.getFileName().toString().startsWith(AGGREGATE_DIR_PREFIX))
+                    .filter(path -> Files.isDirectory(path) || Files.isSymbolicLink(path))
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw exception(WORKTREE_RESIDUE_SCAN_FAILED, GitErrorNormalizer.detail(e));
         }
     }
 
@@ -296,7 +341,7 @@ public class WorktreeManager {
         return fileName.endsWith(".git") ? fileName.substring(0, fileName.length() - ".git".length()) : fileName;
     }
 
-    private void validateTaskNo(String taskNo) {
+    private String normalizeTaskNo(String taskNo) {
         if (taskNo == null) {
             throw exception(WORKTREE_TASK_NO_INVALID, taskNo);
         }
@@ -307,6 +352,11 @@ public class WorktreeManager {
                 || value.endsWith(".")) {
             throw exception(WORKTREE_TASK_NO_INVALID, taskNo);
         }
+        return value;
+    }
+
+    private ReentrantLock lockForTask(String taskNo) {
+        return taskLocks.computeIfAbsent(taskNo, key -> new ReentrantLock());
     }
 
     private void validateBranch(String branch) {
@@ -354,6 +404,7 @@ public class WorktreeManager {
         if (!root.startsWith(workspaceRoot)) {
             throw exception(WORKTREE_ROOT_ESCAPE, root);
         }
+        rejectSymlinkComponents(workspaceRoot, root);
         return root;
     }
 
@@ -362,7 +413,39 @@ public class WorktreeManager {
         if (!target.startsWith(root) || target.equals(root)) {
             throw exception(WORKTREE_SUB_DIR_INVALID, "-", subDir);
         }
+        rejectSymlinkComponents(root, target);
         return target;
+    }
+
+    /**
+     * 在聚合根目录创建后校验真实路径仍位于工作区根目录内，
+     * 防止根目录被替换为指向外部的符号链接。
+     */
+    private void rejectSymlinkEscape(Path root) {
+        try {
+            Path realWorkspaceRoot = workspaceRoot.toRealPath();
+            Path realRoot = root.toRealPath();
+            if (!realRoot.startsWith(realWorkspaceRoot)) {
+                throw exception(WORKTREE_ROOT_ESCAPE, root);
+            }
+        } catch (IOException e) {
+            throw exception(WORKTREE_CREATE_FAILED, "-", "-", "解析工作区真实路径失败：" + GitErrorNormalizer.detail(e));
+        }
+    }
+
+    /**
+     * 拒绝 {@code base} 与 {@code target} 之间（不含 {@code base}）任何
+     * 已存在的符号链接组件，防止子目录通过符号链接逃逸工作根目录。
+     */
+    private void rejectSymlinkComponents(Path base, Path target) {
+        Path baseAbs = base.toAbsolutePath().normalize();
+        Path current = target.toAbsolutePath().normalize();
+        while (current != null && !current.equals(baseAbs)) {
+            if (Files.isSymbolicLink(current)) {
+                throw exception(WORKTREE_SYMLINK_NOT_ALLOWED, current);
+            }
+            current = current.getParent();
+        }
     }
 
     private String normalizeProjectCode(String projectCode) {
@@ -389,6 +472,12 @@ public class WorktreeManager {
         }
         if (value.startsWith("/") || value.endsWith("/") || value.contains("\\")) {
             return null;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c <= 0x1F || c == 0x7F) {
+                return null;
+            }
         }
         for (String segment : value.split("/")) {
             if (segment.isEmpty() || ".".equals(segment) || "..".equals(segment)) {
