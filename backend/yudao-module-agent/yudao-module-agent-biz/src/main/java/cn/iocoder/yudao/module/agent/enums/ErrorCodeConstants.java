@@ -75,5 +75,8 @@ public interface ErrorCodeConstants {
     ErrorCode TASK_DOCUMENT_IF_MATCH_REQUIRED = new ErrorCode(1_061_003_006, "缺少乐观锁请求头 If-Match");
     ErrorCode TASK_DOCUMENT_IF_MATCH_INVALID = new ErrorCode(1_061_003_007, "乐观锁请求头 If-Match 格式无效，应为正整数文档版本");
     ErrorCode TASK_DOCUMENT_IF_MATCH_MISMATCH = new ErrorCode(1_061_003_008, "If-Match 请求头与请求体 docVersion 不一致");
+    ErrorCode TASK_STATUS_TRANSITION_NOT_ALLOWED = new ErrorCode(1_061_003_009, "任务状态不允许执行该转换：当前状态 {}，动作 {}");
+    ErrorCode TASK_STATUS_TRANSITION_TARGET_REQUIRED = new ErrorCode(1_061_003_010, "动作 {} 存在多个目标状态，必须显式指定目标状态");
+    ErrorCode TASK_STATUS_UPDATE_CONFLICT = new ErrorCode(1_061_003_011, "任务 {} 状态已变化，条件更新失败：当前状态 {}，动作 {}");
 
 }
