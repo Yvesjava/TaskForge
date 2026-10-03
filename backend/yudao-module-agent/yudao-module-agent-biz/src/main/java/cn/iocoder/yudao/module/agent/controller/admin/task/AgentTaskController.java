@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskCanc
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskDiffRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
+import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskReEnqueueReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskRejectReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetReqVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskResetRespVO;
@@ -136,12 +137,15 @@ public class AgentTaskController {
     }
 
     @PostMapping("/{id}/re-enqueue")
-    @Operation(summary = "重新入队任务")
+    @Operation(summary = "重新入队任务（原位恢复或克隆为全新任务编号）")
     @PreAuthorize("@ss.hasPermission('agent:task:re-enqueue')")
     public CommonResult<AgentTaskOperationRespVO> reEnqueue(
             @PathVariable("id") Long id,
+            @Valid @RequestBody(required = false) AgentTaskReEnqueueReqVO reqVO,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
-        return success(taskService.reEnqueue(id, idempotencyKey));
+        boolean clone = reqVO != null && Boolean.TRUE.equals(reqVO.getClone());
+        return success(clone ? taskService.reEnqueueClone(id, idempotencyKey)
+                : taskService.reEnqueue(id, idempotencyKey));
     }
 
     @DeleteMapping("/{id}")

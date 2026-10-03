@@ -92,6 +92,18 @@ public interface AgentTaskService {
     AgentTaskOperationRespVO reEnqueue(Long id, String idempotencyKey);
 
     /**
+     * 将已取消、已打回或执行失败的任务克隆为全新任务编号。
+     *
+     * <p>克隆时复制任务文档与项目引用、生成新 {@code task_no}、清空执行结果与耗时、
+     * 执行代次归零，原任务保持不变；审计动作与重投（{@link #reEnqueue}）区分。</p>
+     *
+     * @param id             原任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 克隆后的任务编号、状态与文档版本
+     */
+    AgentTaskOperationRespVO reEnqueueClone(Long id, String idempotencyKey);
+
+    /**
      * 软删除已取消的任务。
      *
      * @param id             任务 ID

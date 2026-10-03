@@ -20,6 +20,7 @@ public enum AgentTaskAction {
     CANCEL("CANCEL", "取消"),
     RESET("RESET", "重置"),
     RE_ENQUEUE("RE_ENQUEUE", "重新入队"),
+    CLONE_RE_ENQUEUE("CLONE_RE_ENQUEUE", "克隆重投"),
     CLAIM("CLAIM", "抢占"),
     SELF_VERIFY_PASS("SELF_VERIFY_PASS", "自验通过"),
     TIMEOUT("TIMEOUT", "执行超时"),
