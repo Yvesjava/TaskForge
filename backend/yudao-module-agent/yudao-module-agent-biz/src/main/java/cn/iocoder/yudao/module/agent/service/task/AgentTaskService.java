@@ -81,4 +81,32 @@ public interface AgentTaskService {
      */
     AgentTaskOperationRespVO deleteTask(Long id, String idempotencyKey);
 
+    /**
+     * 验收通过：WAITING_ACCEPTANCE -> ACCEPTED。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务状态与操作记录
+     */
+    AgentTaskOperationRespVO accept(Long id, String idempotencyKey);
+
+    /**
+     * 打回：WAITING_ACCEPTANCE -> REJECTED，并记录打回反馈。
+     *
+     * @param id             任务 ID
+     * @param feedback       打回反馈（必填）
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务状态与操作记录
+     */
+    AgentTaskOperationRespVO reject(Long id, String feedback, String idempotencyKey);
+
+    /**
+     * 合并冲突人工处理入口：ACCEPTED -> MERGE_CONFLICT_PENDING_MANUAL。
+     *
+     * @param id             任务 ID
+     * @param idempotencyKey 请求幂等键（请求头 X-Idempotency-Key）
+     * @return 操作后的任务状态与操作记录
+     */
+    AgentTaskOperationRespVO markMergeConflict(Long id, String idempotencyKey);
+
 }

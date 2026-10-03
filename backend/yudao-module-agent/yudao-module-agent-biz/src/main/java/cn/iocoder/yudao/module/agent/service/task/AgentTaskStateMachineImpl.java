@@ -111,6 +111,9 @@ public class AgentTaskStateMachineImpl implements AgentTaskStateMachine {
     }
 
     private Integer resolveLoggedDocVersion(AgentTaskTransitionCommand command) {
+        if (command.getDocVersion() != null) {
+            return command.getDocVersion();
+        }
         if (command.getAction() != AgentTaskAction.EDIT || command.getExpectedDocVersion() == null) {
             return null;
         }
