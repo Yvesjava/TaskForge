@@ -31,4 +31,13 @@
          LIMIT 1
     </select>
 
+    <!-- 幂等查询，命中唯一键 uk_request_key（request_idempotency_key, tenant_id）；租户条件自动追加 -->
+    <select id="selectByRequestKey" resultType="cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO">
+        SELECT *
+          FROM agent_task_operation_log
+         WHERE request_idempotency_key = #{requestIdempotencyKey}
+         ORDER BY id ASC
+         LIMIT 1
+    </select>
+
 </mapper>
