@@ -46,3 +46,10 @@ yudao:
       bare-repo-root: ${TASKFORGE_AGENT_BARE_REPO_ROOT:/data/agent-bare-repos}
       # 多仓聚合工作区根目录，每个任务生成独立的 dirA-{taskNo} 目录
       workspace-root: ${TASKFORGE_AGENT_WORKSPACE_ROOT:/data/agent-workspace}
+    exec:
+      # Codex/Claude 可执行文件，以非交互批处理模式启动
+      executable: ${TASKFORGE_AGENT_EXEC_EXECUTABLE:codex}
+      # 单次执行超时（ISO-8601 时长），超时终止整个进程树
+      timeout: ${TASKFORGE_AGENT_EXEC_TIMEOUT:30m}
+      # stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记
+      max-output-bytes: ${TASKFORGE_AGENT_EXEC_MAX_OUTPUT_BYTES:262144}
