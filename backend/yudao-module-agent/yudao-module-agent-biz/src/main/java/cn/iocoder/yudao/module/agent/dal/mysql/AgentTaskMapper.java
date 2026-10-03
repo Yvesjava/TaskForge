@@ -49,6 +49,15 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
     List<AgentTaskDO> selectPendingTasks(@Param("limit") int limit);
 
     /**
+     * 短事务抢占：捞取下一个可执行任务并加行锁。
+     *
+     * <p>按优先级升序、创建时间升序取 {@code PENDING} 任务，使用 {@code FOR UPDATE SKIP LOCKED}
+     * 跳过已被其他事务锁定的行；同时校验前置任务已完成，避免依赖未满足时被抢占。
+     * 该查询必须在与 {@link #markTaskRunning} 相同的短事务内执行。</p>
+     */
+    AgentTaskDO selectNextPendingTaskForUpdate();
+
+    /**
      * 抢占任务：将 PENDING 置为 RUNNING 并写入租约，条件更新成功才允许继续执行
      */
     int markTaskRunning(@Param("id") Long id,
