@@ -16,6 +16,8 @@ import java.util.Locale;
  *   <li>{@code retry-seq <stateFile> <failCount> <successExitCode>}：每次调用
  *       将序号写入 stateFile，输出带序号的 stdout/stderr，前 failCount 次
  *       以非零退出码退出，之后以指定退出码退出；</li>
+ *   <li>{@code write-file <path> <content>}：将指定内容写入指定文件（自动创建
+ *       父目录）后正常退出；</li>
  *   <li>{@code sleep <millis>}：休眠指定毫秒。</li>
  * </ul>
  *
@@ -39,6 +41,7 @@ public final class CodexRunnerTestHelper {
             case "spawn-child" -> spawnChild(Path.of(args[1]));
             case "retry-seq" -> retrySequence(Path.of(args[1]), Integer.parseInt(args[2]),
                     Integer.parseInt(args[3]));
+            case "write-file" -> writeFile(Path.of(args[1]), args[2]);
             case "sleep" -> Thread.sleep(Long.parseLong(args[1]));
             default -> System.exit(2);
         }
@@ -71,6 +74,16 @@ public final class CodexRunnerTestHelper {
         System.out.flush();
         System.err.flush();
         System.exit(attempt <= failCount ? 3 : successExitCode);
+    }
+
+    private static void writeFile(Path path, String content) throws Exception {
+        Path parent = path.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Files.writeString(path, content, StandardCharsets.UTF_8);
+        System.out.println("CODX-WROTE " + path.toAbsolutePath());
+        System.out.flush();
     }
 
     private static String javaExecutable() {
