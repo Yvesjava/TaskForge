@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskOperationLogMapper;
 import cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants;
+import cn.iocoder.yudao.module.agent.service.scheduler.AgentTaskCancelSignalService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,9 @@ class AgentTaskLifecycleTest {
     @Mock
     private AgentTaskOperationLogMapper operationLogMapper;
 
+    @Mock
+    private AgentTaskCancelSignalService cancelSignalService;
+
     private AgentTaskStateMachineImpl stateMachine;
 
     private AgentTaskServiceImpl taskService;
@@ -58,6 +62,7 @@ class AgentTaskLifecycleTest {
         ReflectionTestUtils.setField(taskService, "taskMapper", taskMapper);
         ReflectionTestUtils.setField(taskService, "operationLogMapper", operationLogMapper);
         ReflectionTestUtils.setField(taskService, "stateMachine", stateMachine);
+        ReflectionTestUtils.setField(taskService, "cancelSignalService", cancelSignalService);
     }
 
     @Test
