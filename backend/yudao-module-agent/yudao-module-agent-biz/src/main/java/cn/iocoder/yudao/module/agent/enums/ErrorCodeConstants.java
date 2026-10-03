@@ -40,6 +40,8 @@ public interface ErrorCodeConstants {
     ErrorCode WORKTREE_ROOT_ESCAPE = new ErrorCode(1_061_001_018, "工作区根目录越界：{}");
     ErrorCode WORKTREE_WRITE_TASK_DOC_FAILED = new ErrorCode(1_061_001_019, "写入聚合任务文档失败：{}");
     ErrorCode WORKTREE_GIT_URL_INVALID = new ErrorCode(1_061_001_020, "项目 {} 的仓库地址无效");
+    ErrorCode WORKTREE_SYMLINK_NOT_ALLOWED = new ErrorCode(1_061_001_021, "工作区路径不允许包含符号链接：{}");
+    ErrorCode WORKTREE_RESIDUE_SCAN_FAILED = new ErrorCode(1_061_001_022, "工作区残留检测失败：{}");
 
     // ========== 任务文档模块 1-061-002-000 ==========
     ErrorCode DOCUMENT_EMPTY = new ErrorCode(1_061_002_000, "任务文档不能为空");
