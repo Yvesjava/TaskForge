@@ -44,3 +44,5 @@ yudao:
     workspace:
       # 宿主机 Git 裸仓库缓存根目录，供 WorktreeManager 复用
       bare-repo-root: ${TASKFORGE_AGENT_BARE_REPO_ROOT:/data/agent-bare-repos}
+      # 多仓聚合工作区根目录，每个任务生成独立的 dirA-{taskNo} 目录
+      workspace-root: ${TASKFORGE_AGENT_WORKSPACE_ROOT:/data/agent-workspace}
