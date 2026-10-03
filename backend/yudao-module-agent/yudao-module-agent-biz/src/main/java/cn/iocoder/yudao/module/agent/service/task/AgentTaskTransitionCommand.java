@@ -80,6 +80,31 @@ public class AgentTaskTransitionCommand {
      * 打回反馈（REJECT）
      */
     private String feedback;
+
+    /**
+     * 执行日志（SELF_VERIFY_PASS、TIMEOUT、ERROR）
+     */
+    private String executionLog;
+
+    /**
+     * 重试次数（SELF_VERIFY_PASS、TIMEOUT、ERROR）
+     */
+    private Integer retryTimes;
+
+    /**
+     * 总耗时毫秒（SELF_VERIFY_PASS、TIMEOUT、ERROR）
+     */
+    private Long costMs;
+
+    /**
+     * Diff 统计 JSON（SELF_VERIFY_PASS，当前由后续合并流程计算）
+     */
+    private String diffStat;
+
+    /**
+     * 聚合工作区绝对路径（SELF_VERIFY_PASS 写入，失败时置空）
+     */
+    private String workspacePath;
     /**
      * 操作涉及的文档版本快照（ACCEPT、REJECT、MERGE_CONFLICT 等人工入口）
      */

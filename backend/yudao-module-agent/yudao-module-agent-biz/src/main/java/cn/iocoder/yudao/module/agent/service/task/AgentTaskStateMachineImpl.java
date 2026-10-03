@@ -80,8 +80,11 @@ public class AgentTaskStateMachineImpl implements AgentTaskStateMachine {
             case RESET -> taskMapper.markResettingIfPaused(id);
             case CLAIM -> taskMapper.markTaskRunning(id, command.getWorkerId(), command.getLeaseUntil(),
                     command.getGeneration());
-            case SELF_VERIFY_PASS -> taskMapper.markSelfVerifiedIfRunning(id, command.getWorkerId(), command.getGeneration());
-            case TIMEOUT, ERROR -> taskMapper.markFailedIfRunning(id, command.getWorkerId(), command.getGeneration());
+            case SELF_VERIFY_PASS -> taskMapper.markSelfVerifiedIfRunning(id, command.getWorkerId(), command.getGeneration(),
+                    command.getExecutionLog(), command.getRetryTimes(), command.getCostMs(),
+                    command.getDiffStat(), command.getWorkspacePath());
+            case TIMEOUT, ERROR -> taskMapper.markFailedIfRunning(id, command.getWorkerId(), command.getGeneration(),
+                    command.getExecutionLog(), command.getRetryTimes(), command.getCostMs(), command.getDiffStat());
             case HEARTBEAT_EXPIRED -> taskMapper.markLeaseExpiredFailed(id, command.getGeneration());
             case ACCEPT -> taskMapper.acceptIfWaitingAcceptance(id);
             case REJECT -> taskMapper.rejectIfWaitingAcceptance(id);

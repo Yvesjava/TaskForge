@@ -31,9 +31,14 @@ public class AgentExecProperties {
     private String executable = "codex";
 
     /**
-     * 单次执行超时，超时后终止整个进程树
+     * Codex/Claude 单次执行超时，超时后终止整个进程树
      */
     private Duration timeout = Duration.ofMinutes(30);
+
+    /**
+     * 单条验收命令超时，超时后强制终止该命令
+     */
+    private Duration commandTimeout = Duration.ofMinutes(30);
 
     /**
      * 自修复重试次数上限；初始执行失败后最多重试该次数，超过后归档失败结果
@@ -42,7 +47,8 @@ public class AgentExecProperties {
     private int maxRetries = 2;
 
     /**
-     * stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记
+     * stdout/stderr 单流捕获上限（字节），超出保留头尾并插入截断标记。
+     * 同时作为 Codex 与验收命令的资源限制，防止单次执行撑爆 Worker 内存。
      */
     private int maxOutputBytes = 256 * 1024;
 

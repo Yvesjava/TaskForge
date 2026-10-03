@@ -150,7 +150,8 @@ class AgentTaskStateMachineTest {
 
     @Test
     void transition_selfVerifyPassDelegatesToMarkSelfVerified() {
-        when(taskMapper.markSelfVerifiedIfRunning(TASK_ID, "worker-1", 5L)).thenReturn(1);
+        when(taskMapper.markSelfVerifiedIfRunning(eq(TASK_ID), eq("worker-1"), eq(5L),
+                isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(1);
 
         AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
                 .taskId(TASK_ID)
@@ -163,7 +164,8 @@ class AgentTaskStateMachineTest {
         AgentTaskStatus result = stateMachine.transition(command);
 
         assertThat(result).isEqualTo(AgentTaskStatus.WAITING_ACCEPTANCE);
-        verify(taskMapper).markSelfVerifiedIfRunning(TASK_ID, "worker-1", 5L);
+        verify(taskMapper).markSelfVerifiedIfRunning(eq(TASK_ID), eq("worker-1"), eq(5L),
+                isNull(), isNull(), isNull(), isNull(), isNull());
         assertAudit(AgentTaskAction.SELF_VERIFY_PASS, "RUNNING", "WAITING_ACCEPTANCE");
     }
 

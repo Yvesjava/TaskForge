@@ -155,12 +155,17 @@
            AND deleted = 0
     </update>
 
-    <!-- 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约 -->
+    <!-- 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约并写回执行结果 -->
     <update id="markSelfVerifiedIfRunning">
         UPDATE agent_task
            SET status = 'WAITING_ACCEPTANCE',
                lease_until = NULL,
                heartbeat_time = NULL,
+               execution_log = #{executionLog},
+               retry_times = #{retryTimes},
+               cost_ms = #{costMs},
+               diff_stat = #{diffStat},
+               workspace_path = #{workspacePath},
                update_time = NOW()
          WHERE id = #{id}
            AND status = 'RUNNING'
@@ -169,13 +174,18 @@
            AND deleted = 0
     </update>
 
-    <!-- 执行失败/超时：RUNNING -> FAILED，释放租约并保留日志 -->
+    <!-- 执行失败/超时：RUNNING -> FAILED，释放租约、写回结果并清理工作区引用 -->
     <update id="markFailedIfRunning">
         UPDATE agent_task
            SET status = 'FAILED',
                worker_id = NULL,
                lease_until = NULL,
                heartbeat_time = NULL,
+               execution_log = #{executionLog},
+               retry_times = #{retryTimes},
+               cost_ms = #{costMs},
+               diff_stat = #{diffStat},
+               workspace_path = NULL,
                finished_time = NOW(),
                update_time = NOW()
          WHERE id = #{id}
