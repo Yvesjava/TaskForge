@@ -106,7 +106,7 @@ public class AgentTaskTransitionCommand {
      */
     private String workspacePath;
     /**
-     * 操作涉及的文档版本快照（ACCEPT、REJECT、MERGE_CONFLICT 等人工入口）
+     * 操作涉及的文档版本快照（ACCEPT、REJECT、MERGE_CONFLICT、MERGE_RETRY 等人工入口）
      */
     private Integer docVersion;
 

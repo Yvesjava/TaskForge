@@ -254,6 +254,16 @@
            AND deleted = 0
     </update>
 
+    <!-- 重试合并：MERGE_CONFLICT_PENDING_MANUAL -> ACCEPTED，恢复合并可执行状态 -->
+    <update id="recoverMergeIfPendingManual">
+        UPDATE agent_task
+           SET status = 'ACCEPTED',
+               update_time = NOW()
+         WHERE id = #{id}
+           AND status = 'MERGE_CONFLICT_PENDING_MANUAL'
+           AND deleted = 0
+    </update>
+
     <!-- 重新入队：REJECTED/FAILED/CANCELED -> PENDING，生成新的执行代次 -->
     <update id="reEnqueueIfEnded">
         UPDATE agent_task

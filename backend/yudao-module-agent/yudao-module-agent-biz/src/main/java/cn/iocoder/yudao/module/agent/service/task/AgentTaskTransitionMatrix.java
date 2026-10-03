@@ -62,6 +62,8 @@ public final class AgentTaskTransitionMatrix {
         register(matrix, AgentTaskStatus.ACCEPTED, AgentTaskAction.MERGE_PASS, AgentTaskStatus.COMPLETED);
         register(matrix, AgentTaskStatus.ACCEPTED, AgentTaskAction.MERGE_CONFLICT,
                 AgentTaskStatus.MERGE_CONFLICT_PENDING_MANUAL);
+        register(matrix, AgentTaskStatus.MERGE_CONFLICT_PENDING_MANUAL, AgentTaskAction.MERGE_RETRY,
+                AgentTaskStatus.ACCEPTED);
 
         register(matrix, AgentTaskStatus.REJECTED, AgentTaskAction.RE_ENQUEUE, AgentTaskStatus.PENDING);
         register(matrix, AgentTaskStatus.FAILED, AgentTaskAction.RE_ENQUEUE, AgentTaskStatus.PENDING);
