@@ -86,4 +86,74 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
     int finishReset(@Param("id") Long id,
                     @Param("finalStatus") String finalStatus);
 
+    /**
+     * 暂停：PENDING -> PAUSED，阻止调度器继续消费
+     */
+    int pauseIfPending(@Param("id") Long id);
+
+    /**
+     * 恢复：PAUSED -> PENDING，回到待调度队列
+     */
+    int resumeIfPaused(@Param("id") Long id);
+
+    /**
+     * 取消：PENDING/PAUSED -> CANCELED，写入取消原因
+     */
+    int cancelIfPendingOrPaused(@Param("id") Long id,
+                                @Param("cancelReason") String cancelReason);
+
+    /**
+     * 编辑文档：PAUSED -> PAUSED（自循环），doc_version 乐观锁
+     */
+    int updateDocumentIfPaused(@Param("id") Long id,
+                               @Param("expectedVersion") Integer expectedVersion,
+                               @Param("taskDoc") String taskDoc,
+                               @Param("timeoutMinutes") Integer timeoutMinutes,
+                               @Param("priority") Integer priority,
+                               @Param("dependsOnTaskId") Long dependsOnTaskId);
+
+    /**
+     * 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约
+     */
+    int markSelfVerifiedIfRunning(@Param("id") Long id,
+                                  @Param("workerId") String workerId,
+                                  @Param("generation") Long generation);
+
+    /**
+     * 执行失败/超时：RUNNING -> FAILED，释放租约并保留日志
+     */
+    int markFailedIfRunning(@Param("id") Long id,
+                            @Param("workerId") String workerId,
+                            @Param("generation") Long generation);
+
+    /**
+     * 验收通过：WAITING_ACCEPTANCE -> ACCEPTED
+     */
+    int acceptIfWaitingAcceptance(@Param("id") Long id);
+
+    /**
+     * 打回：WAITING_ACCEPTANCE -> REJECTED
+     */
+    int rejectIfWaitingAcceptance(@Param("id") Long id);
+
+    /**
+     * 合并成功：ACCEPTED -> COMPLETED
+     */
+    int completeIfAccepted(@Param("id") Long id);
+
+    /**
+     * 合并冲突：ACCEPTED -> MERGE_CONFLICT_PENDING_MANUAL
+     */
+    int markMergeConflictIfAccepted(@Param("id") Long id);
+
+    /**
+     * 重新入队：REJECTED/FAILED/CANCELED -> PENDING，生成新的执行代次
+     */
+    int reEnqueueIfEnded(@Param("id") Long id);
+
+    /**
+     * 软删除：CANCELED -> DELETED（deleted=1）
+     */
+    int softDeleteIfCanceled(@Param("id") Long id);
+
 }
