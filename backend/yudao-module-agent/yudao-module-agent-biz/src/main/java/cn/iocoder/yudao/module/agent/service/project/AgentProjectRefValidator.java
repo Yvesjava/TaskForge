@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.agent.service.project;
 import cn.iocoder.yudao.framework.common.enums.CommonStatusEnum;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentProjectDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentProjectMapper;
+import cn.iocoder.yudao.module.agent.framework.workspace.git.GitRefs;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
@@ -32,11 +33,6 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.PROJECT_REF
 @Component
 public class AgentProjectRefValidator {
 
-    /**
-     * Git 分支名中禁止出现的特殊字符（不含控制字符与空格，单独判断）
-     */
-    private static final String GIT_BRANCH_FORBIDDEN_CHARS = "~^:?*[\\";
-
     @Resource
     private AgentProjectMapper projectMapper;
 
@@ -65,7 +61,7 @@ public class AgentProjectRefValidator {
         if (!CommonStatusEnum.ENABLE.getStatus().equals(project.getStatus())) {
             throw exception(PROJECT_REF_DISABLED, projectCode);
         }
-        if (!isValidBranch(ref.getBaseBranch())) {
+        if (!GitRefs.isValidBranchName(ref.getBaseBranch())) {
             throw exception(PROJECT_REF_BASE_BRANCH_INVALID, projectCode, ref.getBaseBranch());
         }
 
@@ -76,35 +72,6 @@ public class AgentProjectRefValidator {
         if (!seenSubDirs.add(subDir)) {
             throw exception(PROJECT_REF_SUB_DIR_CONFLICT, subDir);
         }
-    }
-
-    /**
-     * 校验基线分支是否为合法的 Git 分支名。
-     */
-    private boolean isValidBranch(String branch) {
-        if (branch == null) {
-            return false;
-        }
-        String value = branch.trim();
-        if (value.isEmpty() || value.length() > 64) {
-            return false;
-        }
-        // Git check-ref-format 约束：不能以 - 或 / 开头，不能以 /、.、.lock 结尾
-        if (value.startsWith("-") || value.startsWith("/")
-                || value.endsWith("/") || value.endsWith(".") || value.endsWith(".lock")) {
-            return false;
-        }
-        if (value.equals("@") || value.contains("..") || value.contains("@{") || value.contains("//")) {
-            return false;
-        }
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            // 禁止空格、ASCII 控制字符以及 Git 保留特殊字符
-            if (c <= 0x20 || c == 0x7F || GIT_BRANCH_FORBIDDEN_CHARS.indexOf(c) >= 0) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /**

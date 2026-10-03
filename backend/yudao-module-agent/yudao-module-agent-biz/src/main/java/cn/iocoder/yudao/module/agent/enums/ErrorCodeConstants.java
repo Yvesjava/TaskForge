@@ -18,4 +18,10 @@ public interface ErrorCodeConstants {
     ErrorCode PROJECT_REF_SUB_DIR_INVALID = new ErrorCode(1_061_000_005, "项目 {} 的子目录名无效：{}");
     ErrorCode PROJECT_REF_SUB_DIR_CONFLICT = new ErrorCode(1_061_000_006, "子目录映射冲突：{}");
 
+    // ========== 工作区模块 1-061-001-000 ==========
+    ErrorCode BARE_REPO_PROJECT_CODE_INVALID = new ErrorCode(1_061_001_000, "Bare Repo 项目代号无效：{}");
+    ErrorCode BARE_REPO_BRANCH_INVALID = new ErrorCode(1_061_001_001, "Bare Repo 分支无效，项目 {}：{}");
+    ErrorCode BARE_REPO_INIT_FAILED = new ErrorCode(1_061_001_002, "Bare Repo 缓存初始化失败，项目 {}：{}");
+    ErrorCode BARE_REPO_FETCH_FAILED = new ErrorCode(1_061_001_003, "Bare Repo 拉取失败，项目 {}，分支 {}：{}");
+
 }
