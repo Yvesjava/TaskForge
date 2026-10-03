@@ -50,4 +50,9 @@ public interface AgentTaskOperationLogMapper extends BaseMapperX<AgentTaskOperat
     AgentTaskOperationLogDO selectByTaskIdAndRequestKey(@Param("taskId") Long taskId,
                                                         @Param("requestIdempotencyKey") String requestIdempotencyKey);
 
+    /**
+     * 幂等查询：按请求幂等键查询，命中唯一键 uk_request_key（自动追加租户条件）
+     */
+    AgentTaskOperationLogDO selectByRequestKey(@Param("requestIdempotencyKey") String requestIdempotencyKey);
+
 }

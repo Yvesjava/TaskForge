@@ -59,5 +59,11 @@ public interface ErrorCodeConstants {
     ErrorCode DOCUMENT_SECTION_NOT_CHECKLIST = new ErrorCode(1_061_002_014, "任务文档正文小节 {} 必须包含可勾选清单");
     ErrorCode DOCUMENT_SECTION_STEP_NOT_FOUND = new ErrorCode(1_061_002_015, "任务文档正文小节 {} 缺少验收步骤列表");
     ErrorCode DOCUMENT_SECTION_STEP_NOT_EXECUTABLE = new ErrorCode(1_061_002_016, "任务文档正文小节 {} 的验收步骤必须为可执行命令或明确检查项");
+    ErrorCode DOCUMENT_TASK_NO_INVALID = new ErrorCode(1_061_002_017, "任务文档任务编号无效：{}");
+
+    // ========== 任务投递模块 1-061-003-000 ==========
+    ErrorCode TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED = new ErrorCode(1_061_003_000, "缺少请求幂等键 X-Idempotency-Key");
+    ErrorCode TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID = new ErrorCode(1_061_003_001, "请求幂等键格式无效，长度 16-128，仅允许字母、数字、点、下划线、连字符");
+    ErrorCode TASK_SUBMIT_TASK_NO_DUPLICATE = new ErrorCode(1_061_003_002, "任务编号已存在：{}");
 
 }
