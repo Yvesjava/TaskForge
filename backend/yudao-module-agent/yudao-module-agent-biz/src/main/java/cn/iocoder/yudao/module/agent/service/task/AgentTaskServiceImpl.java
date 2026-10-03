@@ -1,6 +1,7 @@
 package cn.iocoder.yudao.module.agent.service.task;
 
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.common.util.json.JsonUtils;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskOperationRespVO;
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskPageReqVO;
@@ -9,8 +10,10 @@ import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpda
 import cn.iocoder.yudao.module.agent.controller.admin.task.vo.task.AgentTaskUpdateDocumentRespVO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskDO;
 import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskOperationLogDO;
+import cn.iocoder.yudao.module.agent.dal.dataobject.AgentTaskProjectDO;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskMapper;
 import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskOperationLogMapper;
+import cn.iocoder.yudao.module.agent.dal.mysql.AgentTaskProjectMapper;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskAction;
 import cn.iocoder.yudao.module.agent.enums.AgentTaskStatus;
 import cn.iocoder.yudao.module.agent.service.doc.TaskDocument;
@@ -25,6 +28,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import static cn.iocoder.yudao.framework.common.exception.util.ServiceExceptionUtil.exception;
@@ -37,6 +45,7 @@ import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_DOC_VE
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_NOT_FOUND;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_REJECT_FEEDBACK_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_REJECT_FEEDBACK_REQUIRED;
+import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_STATUS_TRANSITION_NOT_ALLOWED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED;
 import static cn.iocoder.yudao.module.agent.enums.ErrorCodeConstants.TASK_SUBMIT_TASK_NO_DUPLICATE;
@@ -57,7 +66,12 @@ public class AgentTaskServiceImpl implements AgentTaskService {
     private static final String STATUS_PAUSED = "PAUSED";
     private static final String ACTION_SUBMIT = "SUBMIT";
     private static final String ACTION_EDIT = "EDIT";
+    private static final String MERGE_STATUS_UNMERGED = "UNMERGED";
     private static final int DEFAULT_PRIORITY = 100;
+    private static final int MAX_TASK_NO_LENGTH = 64;
+    private static final String CLONE_TASK_NO_SUFFIX = "-CLONE-";
+    private static final Set<AgentTaskStatus> CLONEABLE_STATUSES =
+            EnumSet.of(AgentTaskStatus.CANCELED, AgentTaskStatus.REJECTED, AgentTaskStatus.FAILED);
     private static final Pattern IDEMPOTENCY_KEY_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{16,128}$");
     private static final Pattern TASK_NO_PATTERN = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$");
 
@@ -75,6 +89,9 @@ public class AgentTaskServiceImpl implements AgentTaskService {
 
     @Resource
     private AgentTaskOperationLogMapper operationLogMapper;
+
+    @Resource
+    private AgentTaskProjectMapper taskProjectMapper;
 
     @Resource
     private AgentTaskStateMachine stateMachine;
@@ -239,6 +256,85 @@ public class AgentTaskServiceImpl implements AgentTaskService {
     @Override
     public AgentTaskOperationRespVO reEnqueue(Long id, String idempotencyKey) {
         return doLifecycleTransition(id, AgentTaskAction.RE_ENQUEUE, null, idempotencyKey);
+    }
+
+    @Override
+    public AgentTaskOperationRespVO reEnqueueClone(Long id, String idempotencyKey) {
+        validateIdempotencyKey(idempotencyKey);
+
+        // 1. 幂等键快速命中：同一幂等键已克隆重投过，直接返回第一次克隆结果
+        AgentTaskOperationLogDO existingLog = operationLogMapper.selectByRequestKey(idempotencyKey);
+        if (existingLog != null && AgentTaskAction.CLONE_RE_ENQUEUE.getValue().equals(existingLog.getAction())) {
+            AgentTaskDO existingTask = taskMapper.selectById(existingLog.getTaskId());
+            if (existingTask != null) {
+                return buildOperationResponse(existingTask, existingLog);
+            }
+        }
+
+        // 2. 读取原任务并校验其处于可克隆的终态；原任务保持原状态不变
+        AgentTaskDO original = taskMapper.selectById(id);
+        if (original == null) {
+            throw exception(TASK_NOT_FOUND);
+        }
+        AgentTaskStatus fromStatus = AgentTaskStatus.valueOfCode(original.getStatus());
+        if (fromStatus == null || !CLONEABLE_STATUSES.contains(fromStatus)) {
+            throw exception(TASK_STATUS_TRANSITION_NOT_ALLOWED, original.getStatus(),
+                    AgentTaskAction.CLONE_RE_ENQUEUE.getValue());
+        }
+
+        // 3. 生成全新任务编号与独立特性分支，并同步任务文档 Front Matter 的标识
+        String newTaskNo = nextCloneTaskNo(original.getTaskNo());
+        String newTargetBranch = deriveCloneTargetBranch(original.getTargetBranch(), original.getTaskNo(), newTaskNo);
+        String newTaskDoc = rewriteFrontMatterIdentity(original.getTaskDoc(), newTaskNo, newTargetBranch);
+        AgentTaskDO clone = AgentTaskDO.builder()
+                .taskNo(newTaskNo)
+                .title(original.getTitle())
+                .status(STATUS_PENDING)
+                .priority(original.getPriority())
+                .taskDoc(newTaskDoc)
+                .docVersion(1)
+                .dependsOnTaskId(original.getDependsOnTaskId())
+                .targetBranch(newTargetBranch)
+                .timeoutMinutes(original.getTimeoutMinutes())
+                .retryTimes(0)
+                .costMs(0L)
+                .executionGeneration(0L)
+                .build();
+        try {
+            taskMapper.insert(clone);
+        } catch (DuplicateKeyException ex) {
+            throw exception(TASK_SUBMIT_TASK_NO_DUPLICATE, newTaskNo);
+        }
+
+        // 4. 复制任务-项目引用；合并状态重置，提交哈希清空
+        List<AgentTaskProjectDO> projects = taskProjectMapper.selectListByTaskId(id);
+        for (AgentTaskProjectDO project : projects) {
+            taskProjectMapper.insert(AgentTaskProjectDO.builder()
+                    .taskId(clone.getId())
+                    .projectId(project.getProjectId())
+                    .projectCode(project.getProjectCode())
+                    .baseBranch(project.getBaseBranch())
+                    .subDir(project.getSubDir())
+                    .mergeStatus(MERGE_STATUS_UNMERGED)
+                    .build());
+        }
+
+        // 5. 记录克隆重投审计，与重投（RE_ENQUEUE）区分，并保留原任务编号
+        AgentTaskOperationLogDO operationLog = buildCloneReEnqueueLog(clone.getId(), fromStatus, idempotencyKey, original);
+        try {
+            operationLogMapper.insert(operationLog);
+        } catch (DuplicateKeyException ex) {
+            AgentTaskOperationLogDO winner = operationLogMapper.selectByRequestKey(idempotencyKey);
+            if (winner != null) {
+                AgentTaskDO winnerTask = taskMapper.selectById(winner.getTaskId());
+                if (winnerTask != null) {
+                    return buildOperationResponse(winnerTask, winner);
+                }
+            }
+            throw ex;
+        }
+
+        return buildOperationResponse(clone, operationLog);
     }
 
     @Override
@@ -437,6 +533,121 @@ public class AgentTaskServiceImpl implements AgentTaskService {
         response.setExecutionGeneration(task.getExecutionGeneration());
         response.setOperationId(operationLog == null ? null : "op_" + operationLog.getId());
         return response;
+    }
+
+    private AgentTaskOperationLogDO buildCloneReEnqueueLog(Long cloneId, AgentTaskStatus fromStatus,
+                                                           String idempotencyKey, AgentTaskDO original) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("sourceTaskId", original.getId());
+        payload.put("sourceTaskNo", original.getTaskNo());
+        return AgentTaskOperationLogDO.builder()
+                .taskId(cloneId)
+                .action(AgentTaskAction.CLONE_RE_ENQUEUE.getValue())
+                .fromStatus(fromStatus.getValue())
+                .toStatus(STATUS_PENDING)
+                .docVersion(1)
+                .requestIdempotencyKey(idempotencyKey)
+                .operatorId(SecurityFrameworkUtils.getLoginUserId())
+                .operatorName(SecurityFrameworkUtils.getLoginUserNickname())
+                .payload(JsonUtils.toJsonString(payload))
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private String nextCloneTaskNo(String sourceTaskNo) {
+        for (int sequence = 1; ; sequence++) {
+            String candidate = cloneTaskNo(sourceTaskNo, sequence);
+            if (taskMapper.selectByTaskNo(candidate) == null) {
+                return candidate;
+            }
+        }
+    }
+
+    private String cloneTaskNo(String sourceTaskNo, int sequence) {
+        String suffix = CLONE_TASK_NO_SUFFIX + sequence;
+        int maxBaseLength = Math.max(1, MAX_TASK_NO_LENGTH - suffix.length());
+        String base = sourceTaskNo == null ? "" : sourceTaskNo;
+        if (base.length() > maxBaseLength) {
+            base = base.substring(0, maxBaseLength);
+        }
+        return base + suffix;
+    }
+
+    private String deriveCloneTargetBranch(String originalTargetBranch, String originalTaskNo, String newTaskNo) {
+        if (originalTargetBranch == null || originalTargetBranch.isBlank()) {
+            return originalTargetBranch;
+        }
+        if (originalTaskNo != null && originalTargetBranch.contains(originalTaskNo)) {
+            return originalTargetBranch.replace(originalTaskNo, newTaskNo);
+        }
+        return originalTargetBranch + "-CLONE";
+    }
+
+    private String rewriteFrontMatterIdentity(String document, String newTaskNo, String newTargetBranch) {
+        if (document == null || document.isBlank()) {
+            return document;
+        }
+        String newline = document.contains("\r\n") ? "\r\n" : "\n";
+        String[] lines = document.split("\\r?\\n", -1);
+        int opening = -1;
+        int closing = -1;
+        for (int i = 0; i < lines.length; i++) {
+            if ("---".equals(lines[i].trim())) {
+                if (opening < 0) {
+                    opening = i;
+                } else if (closing < 0) {
+                    closing = i;
+                    break;
+                }
+            }
+        }
+        if (opening < 0 || closing < 0 || closing <= opening + 1) {
+            return document;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            if (i > opening && i < closing) {
+                line = rewriteScalar(line, "taskId", newTaskNo);
+                line = rewriteScalar(line, "targetBranch", newTargetBranch);
+            }
+            builder.append(line);
+            if (i < lines.length - 1) {
+                builder.append(newline);
+            }
+        }
+        return builder.toString();
+    }
+
+    private String rewriteScalar(String line, String key, String value) {
+        int colon = findKeyColon(line, key);
+        if (colon < 0) {
+            return line;
+        }
+        String before = line.substring(0, colon + 1);
+        String rest = line.substring(colon + 1);
+        int i = 0;
+        while (i < rest.length() && (rest.charAt(i) == ' ' || rest.charAt(i) == '\t')) {
+            i++;
+        }
+        String indent = rest.substring(0, i);
+        return before + indent + "\"" + value + "\"";
+    }
+
+    private int findKeyColon(String line, String key) {
+        String trimmed = line.trim();
+        if (!trimmed.startsWith(key)) {
+            return -1;
+        }
+        for (int i = 0; i < line.length(); i++) {
+            if (line.charAt(i) == ':') {
+                String candidateKey = line.substring(0, i).trim();
+                if (key.equals(candidateKey)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
 }
