@@ -139,10 +139,10 @@
            AND deleted = 0
     </update>
 
-    <!-- 编辑文档：PAUSED -> PAUSED（自循环），doc_version 乐观锁 -->
-    <update id="updateDocumentIfPaused">
+    <!-- 文档编辑：PAUSED + docVersion 乐观锁条件更新，成功则版本 +1 -->
+    <update id="updateDocumentIfVersionMatches">
         UPDATE agent_task
-           SET task_doc = #{taskDoc},
+           SET task_doc = #{document},
                doc_version = doc_version + 1,
                timeout_minutes = #{timeoutMinutes},
                priority = #{priority},
@@ -150,7 +150,7 @@
                update_time = NOW()
          WHERE id = #{id}
            AND status = 'PAUSED'
-           AND doc_version = #{expectedVersion}
+           AND doc_version = #{docVersion}
            AND deleted = 0
     </update>
 

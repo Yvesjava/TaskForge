@@ -75,8 +75,8 @@ public class AgentTaskStateMachineImpl implements AgentTaskStateMachine {
             case PAUSE -> taskMapper.pauseIfPending(id);
             case RESUME -> taskMapper.resumeIfPaused(id);
             case CANCEL -> taskMapper.cancelIfPendingOrPaused(id, command.getCancelReason());
-            case EDIT -> taskMapper.updateDocumentIfPaused(id, command.getExpectedDocVersion(), command.getTaskDoc(),
-                    command.getTimeoutMinutes(), command.getPriority(), command.getDependsOnTaskId());
+            case EDIT -> taskMapper.updateDocumentIfVersionMatches(id, command.getExpectedDocVersion(),
+                    command.getTaskDoc(), command.getTimeoutMinutes(), command.getPriority(), command.getDependsOnTaskId());
             case RESET -> taskMapper.markResettingIfPaused(id);
             case CLAIM -> taskMapper.markTaskRunning(id, command.getWorkerId(), command.getLeaseUntil(),
                     command.getGeneration());

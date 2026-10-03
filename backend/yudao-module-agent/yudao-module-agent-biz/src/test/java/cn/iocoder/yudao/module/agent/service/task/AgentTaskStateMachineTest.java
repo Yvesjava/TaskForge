@@ -128,7 +128,7 @@ class AgentTaskStateMachineTest {
 
     @Test
     void transition_editDelegatesToDocumentUpdateWithOptimisticLock() {
-        when(taskMapper.updateDocumentIfPaused(eq(TASK_ID), eq(2), eq("new doc"), eq(45), eq(10), isNull()))
+        when(taskMapper.updateDocumentIfVersionMatches(eq(TASK_ID), eq(2), eq("new doc"), eq(45), eq(10), isNull()))
                 .thenReturn(1);
 
         AgentTaskTransitionCommand command = AgentTaskTransitionCommand.builder()
@@ -144,7 +144,7 @@ class AgentTaskStateMachineTest {
         AgentTaskStatus result = stateMachine.transition(command);
 
         assertThat(result).isEqualTo(AgentTaskStatus.PAUSED);
-        verify(taskMapper).updateDocumentIfPaused(eq(TASK_ID), eq(2), eq("new doc"), eq(45), eq(10), isNull());
+        verify(taskMapper).updateDocumentIfVersionMatches(eq(TASK_ID), eq(2), eq("new doc"), eq(45), eq(10), isNull());
         assertAudit(AgentTaskAction.EDIT, "PAUSED", "PAUSED");
     }
 

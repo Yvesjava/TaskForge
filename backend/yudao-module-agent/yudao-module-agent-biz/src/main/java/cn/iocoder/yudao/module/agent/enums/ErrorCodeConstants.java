@@ -69,8 +69,14 @@ public interface ErrorCodeConstants {
     ErrorCode TASK_SUBMIT_IDEMPOTENCY_KEY_REQUIRED = new ErrorCode(1_061_003_000, "缺少请求幂等键 X-Idempotency-Key");
     ErrorCode TASK_SUBMIT_IDEMPOTENCY_KEY_INVALID = new ErrorCode(1_061_003_001, "请求幂等键格式无效，长度 16-128，仅允许字母、数字、点、下划线、连字符");
     ErrorCode TASK_SUBMIT_TASK_NO_DUPLICATE = new ErrorCode(1_061_003_002, "任务编号已存在：{}");
-    ErrorCode TASK_STATUS_TRANSITION_NOT_ALLOWED = new ErrorCode(1_061_003_003, "任务状态不允许执行该转换：当前状态 {}，动作 {}");
-    ErrorCode TASK_STATUS_TRANSITION_TARGET_REQUIRED = new ErrorCode(1_061_003_004, "动作 {} 存在多个目标状态，必须显式指定目标状态");
-    ErrorCode TASK_STATUS_UPDATE_CONFLICT = new ErrorCode(1_061_003_005, "任务 {} 状态已变化，条件更新失败：当前状态 {}，动作 {}");
+    ErrorCode TASK_NOT_FOUND = new ErrorCode(1_061_003_003, "任务不存在");
+    ErrorCode TASK_DOCUMENT_STATE_INVALID = new ErrorCode(1_061_003_004, "仅暂停（PAUSED）状态的任务允许编辑文档");
+    ErrorCode TASK_DOC_VERSION_CONFLICT = new ErrorCode(1_061_003_005, "文档版本冲突，当前最新版本为 {}");
+    ErrorCode TASK_DOCUMENT_IF_MATCH_REQUIRED = new ErrorCode(1_061_003_006, "缺少乐观锁请求头 If-Match");
+    ErrorCode TASK_DOCUMENT_IF_MATCH_INVALID = new ErrorCode(1_061_003_007, "乐观锁请求头 If-Match 格式无效，应为正整数文档版本");
+    ErrorCode TASK_DOCUMENT_IF_MATCH_MISMATCH = new ErrorCode(1_061_003_008, "If-Match 请求头与请求体 docVersion 不一致");
+    ErrorCode TASK_STATUS_TRANSITION_NOT_ALLOWED = new ErrorCode(1_061_003_009, "任务状态不允许执行该转换：当前状态 {}，动作 {}");
+    ErrorCode TASK_STATUS_TRANSITION_TARGET_REQUIRED = new ErrorCode(1_061_003_010, "动作 {} 存在多个目标状态，必须显式指定目标状态");
+    ErrorCode TASK_STATUS_UPDATE_CONFLICT = new ErrorCode(1_061_003_011, "任务 {} 状态已变化，条件更新失败：当前状态 {}，动作 {}");
 
 }

@@ -103,14 +103,16 @@ public interface AgentTaskMapper extends BaseMapperX<AgentTaskDO> {
                                 @Param("cancelReason") String cancelReason);
 
     /**
-     * 编辑文档：PAUSED -> PAUSED（自循环），doc_version 乐观锁
+     * 暂停任务的文档编辑：仅当状态为 PAUSED 且 docVersion 匹配时更新并递增版本。
+     *
+     * <p>条件更新影响行数为 0 表示版本已过期、状态非法或任务不存在。</p>
      */
-    int updateDocumentIfPaused(@Param("id") Long id,
-                               @Param("expectedVersion") Integer expectedVersion,
-                               @Param("taskDoc") String taskDoc,
-                               @Param("timeoutMinutes") Integer timeoutMinutes,
-                               @Param("priority") Integer priority,
-                               @Param("dependsOnTaskId") Long dependsOnTaskId);
+    int updateDocumentIfVersionMatches(@Param("id") Long id,
+                                       @Param("docVersion") Integer docVersion,
+                                       @Param("document") String document,
+                                       @Param("timeoutMinutes") Integer timeoutMinutes,
+                                       @Param("priority") Integer priority,
+                                       @Param("dependsOnTaskId") Long dependsOnTaskId);
 
     /**
      * 自验通过：RUNNING -> WAITING_ACCEPTANCE，释放租约
