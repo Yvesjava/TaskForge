@@ -120,6 +120,15 @@
             v-if="scope.row.status === 'PAUSED'"
             link
             type="primary"
+            @click="handleEditDetail(scope.row)"
+            v-hasPermi="['agent:task:update']"
+          >
+            编辑细节
+          </el-button>
+          <el-button
+            v-if="scope.row.status === 'PAUSED'"
+            link
+            type="primary"
             @click="handleResume(scope.row)"
             v-hasPermi="['agent:task:resume']"
           >
@@ -273,6 +282,21 @@ const resetQuery = () => {
 /** 查看任务 Diff/日志/测试报告/分支信息 */
 const handleViewDiff = (row: AgentTask) => {
   diffViewerRef.value?.open(row)
+}
+
+/** 编辑暂停任务的文档细节：拉取最新 taskDoc 后打开编辑抽屉 */
+const handleEditDetail = async (row: AgentTask) => {
+  try {
+    const detail = await AgentTaskApi.getTask(row.id!)
+    docEditorRef.value?.open({
+      id: detail.id ?? row.id!,
+      taskNo: detail.taskNo,
+      docVersion: Number(detail.docVersion) || 0,
+      taskDoc: detail.taskDoc || ''
+    })
+  } catch {
+    message.error('加载任务文档失败')
+  }
 }
 
 /** 提交新任务 */

@@ -44,6 +44,7 @@ export interface AgentTask {
   taskNo?: string // 任务唯一编号
   title?: string // 任务简述
   status?: string // 任务状态
+  taskDoc?: string // 任务需求文档（含计划与验收标准）
   priority?: number // 执行优先级
   docVersion?: number // 文档版本号
   dependsOnTaskId?: number // 前置任务 ID
@@ -145,8 +146,8 @@ export const AgentTaskApi = {
     return await request.get({ url: '/agent/task/page', params })
   },
 
-  // 查询任务详情
-  getTask: async (id: number) => {
+  // 查询任务详情（含完整 taskDoc）
+  getTask: async (id: number): Promise<AgentTask> => {
     return await request.get({ url: '/agent/task/get?id=' + id })
   },
 
